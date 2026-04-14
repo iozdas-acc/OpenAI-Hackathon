@@ -22,9 +22,10 @@ Stage 0: scaffold the hackathon repo
 
 - Repo structure exists
 - Dependencies are installed
-- Frontend shell runs
+- Frontend shell is installed and lint-validated
 - API shell runs
 - Orchestrator shell runs
+- Context graph shell runs
 - Startup instructions are documented
 
 ## Next milestone

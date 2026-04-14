@@ -25,7 +25,7 @@ equipped with procedural knowledge that no model can fully possess.
 
 ## Core Principles
 
-## For This Repo
+### For This Repo
 
 - Keep the repo copy under `skills/` as the source of truth. If you are creating or updating a skill for this project, edit the repo-managed copy instead of relying on a machine-local installation.
 - Place new skill folders under the category that best matches their purpose, such as `skills/repo/`, `skills/frontend/web2d/`, or `skills/hackathon/`.
