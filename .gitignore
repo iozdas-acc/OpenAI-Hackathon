@@ -1,0 +1,14 @@
+.DS_Store
+.env
+.env.local
+.venv
+__pycache__/
+*.pyc
+.next/
+node_modules/
+dist/
+build/
+.turbo/
+.pytest_cache/
+.mypy_cache/
+coverage/
