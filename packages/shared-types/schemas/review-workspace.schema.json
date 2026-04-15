@@ -1,0 +1,88 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://codex-hackathon.local/schemas/review-workspace.schema.json",
+  "title": "ReviewWorkspacePayload",
+  "type": "object",
+  "required": [
+    "workspaceId",
+    "generatedAt",
+    "summary",
+    "context",
+    "activeDecision",
+    "evidence",
+    "nearbyMappings",
+    "queue",
+    "outcomes",
+    "reviewerNote"
+  ],
+  "properties": {
+    "workspaceId": { "type": "string" },
+    "generatedAt": { "type": "string", "format": "date-time" },
+    "summary": {
+      "type": "object",
+      "required": [
+        "title",
+        "sourceSystemLabel",
+        "targetSystemLabel",
+        "readinessLabel",
+        "unresolvedDecisionCount",
+        "autoResolvedCount"
+      ],
+      "properties": {
+        "title": { "type": "string" },
+        "sourceSystemLabel": { "type": "string" },
+        "targetSystemLabel": { "type": "string" },
+        "readinessLabel": { "type": "string" },
+        "unresolvedDecisionCount": { "type": "integer", "minimum": 0 },
+        "autoResolvedCount": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "context": {
+      "type": "object",
+      "required": ["narrative", "conflictThemes", "sourceNetwork"],
+      "properties": {
+        "narrative": { "type": "string" },
+        "conflictThemes": { "type": "array", "items": { "type": "string" } },
+        "sourceNetwork": { "type": "object" }
+      }
+    },
+    "activeDecision": {
+      "type": "object",
+      "required": [
+        "decisionId",
+        "title",
+        "status",
+        "sourceField",
+        "targetConcept",
+        "rationale",
+        "impactSummary",
+        "recommendedOptionId",
+        "options",
+        "actions"
+      ],
+      "properties": {
+        "decisionId": { "type": "string" },
+        "title": { "type": "string" },
+        "status": { "type": "string" },
+        "sourceField": { "type": "object" },
+        "targetConcept": { "type": "object" },
+        "rationale": { "type": "string" },
+        "impactSummary": { "type": "string" },
+        "recommendedOptionId": { "type": "string" },
+        "options": { "type": "array", "items": { "type": "object" } },
+        "actions": { "type": "array", "items": { "type": "object" } }
+      }
+    },
+    "evidence": { "type": "array", "items": { "type": "object" } },
+    "nearbyMappings": { "type": "array", "items": { "type": "object" } },
+    "queue": { "type": "array", "items": { "type": "object" } },
+    "outcomes": { "type": "array", "items": { "type": "object" } },
+    "reviewerNote": {
+      "type": "object",
+      "required": ["placeholder"],
+      "properties": {
+        "placeholder": { "type": "string" }
+      }
+    }
+  }
+}

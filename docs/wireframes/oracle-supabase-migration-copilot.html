@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Oracle to Supabase Migration Workspace</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0c1522;--panel:rgba(14,24,38,.95);--panel2:rgba(18,33,52,.82);--panel3:rgba(9,18,31,.88);--line:rgba(140,163,194,.14);--line2:rgba(140,163,194,.09);--text:#edf3fb;--muted:#a7b7cf;--subtle:#7286a8;--accent:#69d8c1;--accent2:#93c9ff;--warning:#f1c56f;--danger:#fb8e88;--success:#8fe0ad;--shadow:0 30px 90px rgba(0,0,0,.34);--r1:30px;--r2:24px;--r3:18px;--r4:14px}*{box-sizing:border-box;margin:0;padding:0}body{min-height:100vh;font-family:"Manrope",sans-serif;color:var(--text);background:radial-gradient(circle at top left,rgba(72,129,229,.14),transparent 30%),radial-gradient(circle at 85% 8%,rgba(105,216,193,.08),transparent 24%),linear-gradient(180deg,#0c1524 0%,#08111d 100%);padding:24px}.shell{max-width:1520px;margin:0 auto;background:rgba(8,16,28,.84);border:1px solid rgba(133,159,193,.12);border-radius:var(--r1);box-shadow:var(--shadow);backdrop-filter:blur(16px);overflow:hidden}.header{display:grid;grid-template-columns:1.5fr auto;gap:18px;align-items:center;padding:22px 28px 18px;border-bottom:1px solid var(--line);background:linear-gradient(135deg,rgba(105,216,193,.06),transparent 35%),linear-gradient(180deg,rgba(255,255,255,.02),transparent)}.eyebrow,.badge,.pill,.tab,.btn{border-radius:999px}.eyebrow{display:inline-flex;gap:10px;padding:8px 12px;background:rgba(105,216,193,.12);border:1px solid rgba(105,216,193,.2);color:var(--accent);font-size:12px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;margin-bottom:10px}h1{font-size:clamp(28px,3vw,38px);line-height:1.08;letter-spacing:-.04em;max-width:780px;margin-bottom:8px}.subhead{max-width:780px;color:var(--muted);font-size:15px;line-height:1.62}.header-meta{display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end;align-items:center}.status-card{min-width:240px;padding:14px 16px;border-radius:18px;background:linear-gradient(180deg,rgba(18,31,48,.96),rgba(11,21,35,.95));border:1px solid rgba(143,224,173,.22)}.kicker{color:var(--muted);font-size:11px;letter-spacing:.16em;text-transform:uppercase;margin-bottom:7px}.status-value{font-size:22px;font-weight:800;letter-spacing:-.03em;margin-bottom:5px}.status-copy{color:var(--subtle);font-size:13px;line-height:1.5;max-width:250px}.badge-row,.chips,.actions,.tabs,.micro{display:flex;gap:8px;flex-wrap:wrap}.badge{padding:9px 12px;border:1px solid var(--line);background:rgba(17,31,48,.82);color:var(--muted);font-size:12px;font-weight:700}.badge.warning{color:var(--warning);border-color:rgba(241,197,111,.24);background:rgba(241,197,111,.08)}.main{padding:20px;display:grid;gap:16px}.compact-band,.hero-grid,.decision-grid,.detail-grid{display:grid;gap:16px}.compact-band{grid-template-columns:1.45fr .9fr}.panel{background:linear-gradient(180deg,rgba(14,26,41,.96),rgba(10,20,34,.95));border:1px solid var(--line);border-radius:var(--r2);padding:18px;box-shadow:inset 0 1px 0 rgba(255,255,255,.03)}.title{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin-bottom:14px}.title h2{font-size:21px;letter-spacing:-.03em}.title span{font-size:12px;color:var(--subtle);text-transform:uppercase;letter-spacing:.14em}.context-rail{display:grid;grid-template-columns:1.35fr auto;gap:14px;align-items:start}.context-summary{padding:14px 16px;border-radius:16px;background:var(--panel2);border:1px solid var(--line)}.context-summary strong{display:block;font-size:15px;margin-bottom:5px}.context-summary p,.context-note,.queue-text,.evidence-copy,.placeholder-copy,.foot{color:var(--muted);font-size:13px;line-height:1.58}.mini-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-top:12px}.mini{padding:12px;border-radius:14px;background:rgba(9,18,31,.72);border:1px solid var(--line2)}.mini .label{color:var(--subtle);font-size:11px;text-transform:uppercase;letter-spacing:.12em;margin-bottom:6px}.mini .value{font-size:20px;font-weight:800;letter-spacing:-.03em}.mini .copy{color:var(--muted);font-size:12px;line-height:1.45;margin-top:3px}.network-card{min-width:290px;padding:14px;border-radius:16px;background:var(--panel3);border:1px solid var(--line2)}.tree{position:relative;min-height:138px;border-radius:14px;background:linear-gradient(180deg,rgba(7,16,29,.94),rgba(10,21,36,.96));overflow:hidden}.tree:before{content:"";position:absolute;inset:0;background-image:linear-gradient(rgba(113,132,165,.07) 1px,transparent 1px),linear-gradient(90deg,rgba(113,132,165,.07) 1px,transparent 1px);background-size:22px 22px;mask-image:linear-gradient(180deg,rgba(0,0,0,.96),transparent)}.tree svg{position:absolute;inset:0;width:100%;height:100%}.node{position:absolute;padding:7px 9px;border-radius:11px;border:1px solid rgba(146,176,219,.18);background:rgba(17,31,48,.92);font-size:10px;line-height:1.3}.node strong{display:block;font-size:11px}.node small{color:var(--muted)}.root{left:84px;top:14px;border-color:rgba(105,216,193,.28)}.a{left:14px;top:78px}.b{left:112px;top:78px}.c{left:192px;top:100px}.context-note{margin-top:10px}.progress-card{display:grid;gap:10px}.progress-top{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;padding:14px 16px;border-radius:16px;background:rgba(18,33,52,.78);border:1px solid var(--line)}.progress-top strong{display:block;font-size:15px;margin-bottom:4px}.lane{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}.step{padding:12px;border-radius:14px;background:rgba(9,18,31,.72);border:1px solid var(--line2);min-height:88px}.step.active{background:linear-gradient(180deg,rgba(105,216,193,.12),rgba(9,18,31,.9));border-color:rgba(105,216,193,.24)}.step .s{font-size:11px;color:var(--subtle);text-transform:uppercase;letter-spacing:.12em;margin-bottom:8px}.step strong{display:block;font-size:13px;line-height:1.4;margin-bottom:6px}.step p{color:var(--muted);font-size:12px;line-height:1.45}.hero-grid{grid-template-columns:1fr}.hero-frame{padding:18px;border-radius:24px;background:linear-gradient(180deg,rgba(15,28,45,.96),rgba(10,20,34,.96));border:1px solid var(--line)}.hero-head{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:14px}.hero-head h2{font-size:24px;letter-spacing:-.03em}.hero-badge{padding:10px 12px;border-radius:999px;background:rgba(241,197,111,.12);border:1px solid rgba(241,197,111,.2);color:var(--warning);font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.12em}.decision-grid{grid-template-columns:.92fr 1.18fr .9fr;align-items:start}.column{display:grid;gap:12px}.surface{padding:16px;border-radius:18px;background:var(--panel2);border:1px solid var(--line)}.surface.alt{background:rgba(9,18,31,.82)}.surface h3{font-size:16px;letter-spacing:-.02em;margin-bottom:4px}.surface-label{color:var(--subtle);font-size:11px;text-transform:uppercase;letter-spacing:.14em;margin-bottom:10px}.evidence{display:grid;gap:10px}.evidence-item{padding:12px;border-radius:14px;background:rgba(9,18,31,.76);border:1px solid var(--line2)}.evidence-item strong{display:block;font-size:13px;margin-bottom:5px}.evidence-meta{color:var(--subtle);font-size:11px;font-family:"IBM Plex Mono",monospace;margin-bottom:5px}.mapping-list{display:grid;gap:10px}.mapping-row{display:grid;grid-template-columns:1fr auto;gap:10px;padding:12px;border-radius:14px;background:rgba(9,18,31,.76);border:1px solid var(--line2)}.mapping-row.flagged{border-color:rgba(241,197,111,.22);background:linear-gradient(90deg,rgba(241,197,111,.09),rgba(9,18,31,.88))}.field{font-weight:800;font-size:14px;margin-bottom:4px}.meta{color:var(--subtle);font-size:11px;font-family:"IBM Plex Mono",monospace;margin-bottom:6px}.flow{color:var(--muted);font-size:13px;line-height:1.5}.decision-card{padding:18px;border-radius:20px;background:linear-gradient(180deg,rgba(241,197,111,.12),rgba(16,31,51,.92));border:1px solid rgba(241,197,111,.18)}.decision-title{font-size:23px;font-weight:800;letter-spacing:-.03em;margin-bottom:8px}.decision-copy{color:var(--muted);font-size:14px;line-height:1.65;margin-bottom:14px}.choice-grid{display:grid;gap:12px}.choice{padding:14px 16px;border-radius:16px;border:1px solid rgba(146,176,219,.14);background:rgba(8,16,29,.72)}.choice strong{display:block;margin-bottom:5px;font-size:15px}.choice small{color:var(--subtle);font-size:12px;font-family:"IBM Plex Mono",monospace}.choice.approved{border-color:rgba(143,224,173,.22);background:rgba(143,224,173,.08)}.actions{margin-top:16px}.btn{padding:11px 14px;font-size:13px;font-weight:800;border:1px solid rgba(146,176,219,.18);background:rgba(9,18,33,.86);color:var(--text)}.btn.primary{background:linear-gradient(135deg,rgba(105,216,193,.96),rgba(150,203,255,.88));color:#04111b;border-color:transparent}.pill{display:inline-flex;align-items:center;padding:7px 11px;font-size:11px;font-weight:800;border:1px solid transparent}.ready,.high{color:var(--success);background:rgba(143,224,173,.1);border-color:rgba(143,224,173,.18)}.review,.medium{color:var(--warning);background:rgba(241,197,111,.12);border-color:rgba(241,197,111,.22)}.blocked{color:var(--danger);background:rgba(251,142,136,.1);border-color:rgba(251,142,136,.18)}.queue{display:grid;gap:10px}.queue-item{padding:12px;border-radius:14px;background:rgba(9,18,31,.76);border:1px solid var(--line2)}.queue-head{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;margin-bottom:5px}.queue-head strong{font-size:13px}.queue-text{font-size:12px}.outcome-strip{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.outcome{padding:12px;border-radius:14px;background:rgba(9,18,31,.76);border:1px solid var(--line2)}.outcome strong{display:block;font-size:18px;margin-bottom:4px}.outcome span{display:block;color:var(--muted);font-size:12px;line-height:1.45}.tabs{padding-bottom:4px;border-bottom:1px solid var(--line)}.tab{padding:10px 13px;border:1px solid transparent;color:var(--muted);font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.11em}.tab.active{color:var(--text);background:rgba(18,37,61,.72);border-color:rgba(146,176,219,.14);border-radius:14px 14px 0 0}.detail-grid{grid-template-columns:repeat(4,minmax(0,1fr));margin-top:14px}.placeholder{padding:16px;border-radius:18px;background:var(--panel2);border:1px solid var(--line);min-height:220px;display:grid;grid-template-rows:auto auto 1fr auto;gap:12px}.placeholder h3{font-size:16px}.placeholder-shell{padding:12px;border-radius:14px;background:rgba(9,18,31,.72);border:1px solid var(--line2)}.placeholder-stack{display:grid;gap:9px}.ghost-row{height:12px;border-radius:999px;background:linear-gradient(90deg,rgba(255,255,255,.05),rgba(255,255,255,.12),rgba(255,255,255,.05))}.ghost-row.short{width:62%}.ghost-row.mid{width:78%}.ghost-row.full{width:100%}.placeholder-foot{font-size:12px;color:var(--subtle);line-height:1.5}.foot{margin-top:8px;padding:13px 14px;border-radius:14px;border:1px solid rgba(105,216,193,.18);background:rgba(105,216,193,.08);color:#d9fff2}.micro .badge{padding:7px 10px;font-size:11px}@media (max-width:1280px){.compact-band,.decision-grid,.detail-grid,.header{grid-template-columns:1fr}.header-meta,.badge-row{justify-content:flex-start}.lane{grid-template-columns:repeat(2,minmax(0,1fr))}}@media (max-width:820px){body{padding:14px}.header,.main{padding:18px}.context-rail,.mini-metrics,.hero-grid,.detail-grid,.lane,.outcome-strip{grid-template-columns:1fr}.hero-head{align-items:flex-start;flex-direction:column}}
+</style>
+</head>
+<body>
+<div class="shell">
+<header class="header">
+<div>
+<div class="eyebrow">Migration Workspace</div>
+<h1>Oracle estate review workspace for migration readiness</h1>
+<p class="subhead">Codex scans the connected Oracle source, proposes canonical mappings across a messy merged-company estate, and routes only the risky ambiguities to human reviewers before a Supabase-ready package is prepared.</p>
+</div>
+<div class="header-meta">
+<div class="status-card"><div class="kicker">Current Milestone</div><div class="status-value">Partially Ready</div><div class="status-copy">2 arbitration decisions remain before this migration package can move downstream safely.</div></div>
+<div class="badge-row"><div class="badge warning">Merged Source</div><div class="badge">Oracle Connected</div><div class="badge">Target: Supabase</div></div>
+</div>
+</header>
+<main class="main">
+<section class="compact-band">
+<section class="panel">
+<div class="title"><h2>Migration Context</h2><span>Compressed view</span></div>
+<div class="context-rail">
+<div>
+<div class="context-summary"><strong>Merged finance, CRM, and marketing sources are mapped into one review case.</strong><p>Codex has already reduced the live Oracle scan into the handful of semantic conflicts that block a safe migration-ready package.</p></div>
+<div class="mini-metrics">
+<div class="mini"><div class="label">Schemas</div><div class="value">3</div><div class="copy">1 review case</div></div>
+<div class="mini"><div class="label">Flagged tables</div><div class="value">18</div><div class="copy">6 overlap on customer meaning</div></div>
+<div class="mini"><div class="label">Open conflicts</div><div class="value">12</div><div class="copy">2 require human arbitration now</div></div>
+<div class="mini"><div class="label">Last scan</div><div class="value">09:14</div><div class="copy">Codex summary refreshed</div></div>
+</div>
+</div>
+<div class="network-card">
+<div class="kicker">Source Network</div>
+<div class="tree" aria-label="Simplified Oracle source network tree">
+<svg viewBox="0 0 260 138" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+<path d="M122 32V53" stroke="rgba(147,201,255,.35)" stroke-width="2"/>
+<path d="M122 53H50V78" stroke="rgba(147,201,255,.35)" stroke-width="2"/>
+<path d="M122 53H132V78" stroke="rgba(147,201,255,.35)" stroke-width="2"/>
+<path d="M132 78H210V100" stroke="rgba(105,216,193,.3)" stroke-width="2"/>
+</svg>
+<div class="node root"><strong>oracle-prod</strong><small>merged source</small></div>
+<div class="node a"><strong>crm_core</strong><small>identity</small></div>
+<div class="node b"><strong>fin_customer</strong><small>status</small></div>
+<div class="node c"><strong>legacy_mktg</strong><small>segment</small></div>
+</div>
+<div class="context-note">Small topology context keeps the source story visible without dominating the page.</div>
+</div>
+</div>
+</section>
+<section class="panel">
+<div class="title"><h2>Progress</h2><span>Operator state</span></div>
+<div class="progress-card">
+<div class="progress-top"><div><strong>Codex has finished source interpretation and raised the ambiguous mappings that actually need human judgement.</strong><p class="queue-text">Everything else here is about clearing readiness blockers, not running the migration itself.</p></div><div class="micro"><div class="badge">5 auto-cleared</div><div class="badge warning">2 reviews open</div></div></div>
+<div class="lane">
+<div class="step"><div class="s">1</div><strong>Connect + scan</strong><p>Oracle metadata pulled into the workspace.</p></div>
+<div class="step active"><div class="s">2</div><strong>Codex analysis</strong><p>Concept overlaps and mappings suggested.</p></div>
+<div class="step"><div class="s">3</div><strong>Human review</strong><p>Ambiguous fields routed for arbitration.</p></div>
+<div class="step"><div class="s">4</div><strong>Validate</strong><p>Readiness checks wait on approvals.</p></div>
+<div class="step"><div class="s">5</div><strong>Package</strong><p>Supabase-ready output after sign-off.</p></div>
+</div>
+</div>
+</section>
+</section>
+
+<section class="hero-frame">
+<div class="hero-head"><h2>Review Workspace</h2><div class="hero-badge">Core decision in focus</div></div>
+<div class="decision-grid">
+<div class="column">
+<div class="surface">
+<div class="surface-label">Codex Context</div>
+<h3>Why this field is ambiguous</h3>
+<div class="evidence-copy">Codex sees the same code family reused across inherited systems, but with different implied ownership and lifecycle meaning after the merger.</div>
+<div class="chips"><div class="badge">Duplicate semantics</div><div class="badge">Shared code family</div><div class="badge">Ownership unclear</div></div>
+</div>
+<div class="surface alt">
+<div class="surface-label">Evidence</div>
+<div class="evidence">
+<div class="evidence-item"><div class="evidence-meta">fin_customer.account.status_cd</div><strong>Observed behavior</strong><div class="evidence-copy">Values align to account lifecycle transitions in finance workflows, not only customer standing.</div></div>
+<div class="evidence-item"><div class="evidence-meta">crm_core.customer.customer_status</div><strong>Target expectation</strong><div class="evidence-copy">Downstream readiness checks assume one customer-level status used for reporting and package validation.</div></div>
+<div class="evidence-item"><div class="evidence-meta">Codex rationale</div><strong>Suggested interpretation</strong><div class="evidence-copy">Map to the target concept that preserves downstream behavior, then note the semantic compromise in the package audit trail.</div></div>
+</div>
+</div>
+<div class="surface alt">
+<div class="surface-label">Nearby mappings</div>
+<div class="mapping-list">
+<div class="mapping-row"><div><div class="field">cust_no</div><div class="meta">crm_core.customer</div><div class="flow">Stable identity mapping to `customer_id`.</div></div><span class="pill ready">Auto</span></div>
+<div class="mapping-row flagged"><div><div class="field">status_cd</div><div class="meta">fin_customer.account</div><div class="flow">Candidate target is split between `customer_status` and `account_state`.</div></div><span class="pill review">Review</span></div>
+<div class="mapping-row flagged"><div><div class="field">segment_cd</div><div class="meta">legacy_marketing.segment</div><div class="flow">Needs translation rule after this decision.</div></div><span class="pill review">Next</span></div>
+</div>
+</div>
+</div>
+
+<div class="column">
+<div class="decision-card">
+<div class="surface-label">Active Arbitration</div>
+<div class="decision-title">Resolve the merged-company status conflict</div>
+<div class="decision-copy">Codex has identified that `status_cd` behaves differently across inherited systems. The finance source uses the same codes to mean account lifecycle, while the migration package expects a customer-level status for readiness and downstream reporting.</div>
+<div class="choice-grid">
+<div class="choice approved"><strong>Recommended: map to `customer_status`</strong><small>Best fit for consolidated reporting, package validation, and the Supabase customer model</small></div>
+<div class="choice"><strong>Alternative: map to `account_state`</strong><small>Closer to source semantics, but weakens the unified target model and readiness logic</small></div>
+</div>
+<div class="actions"><div class="btn primary">Approve recommended mapping</div><div class="btn">Edit target field</div><div class="btn">Reject and flag</div></div>
+<div class="foot">Human review is the control point: Codex proposes the safest interpretation, but the migration lead records the canonical choice.</div>
+</div>
+</div>
+
+<div class="column">
+<div class="surface">
+<div class="surface-label">Queue</div>
+<div class="queue">
+<div class="queue-item"><div class="queue-head"><strong>`status_cd` ownership conflict</strong><span class="pill review">Now</span></div><div class="queue-text">Finance and CRM use overlapping labels with different operational meaning.</div></div>
+<div class="queue-item"><div class="queue-head"><strong>`segment_cd` translation rule</strong><span class="pill review">Next</span></div><div class="queue-text">Legacy marketing taxonomy needs one approved canonical mapping table.</div></div>
+<div class="queue-item"><div class="queue-head"><strong>`region_owner` source selection</strong><span class="pill ready">Queued</span></div><div class="queue-text">Important, but not blocking the package until the current decision lands.</div></div>
+</div>
+</div>
+<div class="surface alt">
+<div class="surface-label">Outcome Snapshot</div>
+<div class="outcome-strip">
+<div class="outcome"><strong>87%</strong><span>Package readiness once open decisions are resolved.</span></div>
+<div class="outcome"><strong>5</strong><span>Mappings are already strong enough to carry forward automatically.</span></div>
+</div>
+<div class="queue-text" style="margin-top:10px">Approvals here feed the validation and package tabs rather than redrawing the whole page in real time.</div>
+</div>
+<div class="surface alt">
+<div class="surface-label">Decision Notes</div>
+<div class="queue-text">Placeholder for reviewer comment, audit note, or escalation reason attached to the package output.</div>
+<div class="placeholder-shell" style="margin-top:10px"><div class="ghost-row full"></div><div class="ghost-row mid" style="margin-top:8px"></div><div class="ghost-row short" style="margin-top:8px"></div></div>
+</div>
+</div>
+</div>
+</section>
+
+<section class="panel">
+<div class="title"><h2>Secondary Surfaces</h2><span>Tabbed workspaces</span></div>
+<div class="tabs"><div class="tab active">Validation</div><div class="tab">Target Package</div><div class="tab">Discovery</div><div class="tab">Activity</div></div>
+<div class="detail-grid">
+<div class="placeholder">
+<div class="surface-label">Validation</div>
+<h3>Readiness checks and blockers</h3>
+<div class="placeholder-copy">Coverage, blocking ambiguities, translation risks, and package promotion criteria appear here once reviews are committed.</div>
+<div class="placeholder-shell"><div class="placeholder-stack"><div class="ghost-row full"></div><div class="ghost-row mid"></div><div class="ghost-row short"></div><div class="ghost-row full"></div></div></div>
+<div class="placeholder-foot">Use this tab to answer: “Can we safely package this yet?”</div>
+</div>
+<div class="placeholder">
+<div class="surface-label">Target Package</div>
+<h3>Supabase-ready shape and sample output</h3>
+<div class="placeholder-copy">Canonical fields, transformed sample records, and the package manifest live here after human decisions settle the final target shape.</div>
+<div class="placeholder-shell"><div class="placeholder-stack"><div class="ghost-row full"></div><div class="ghost-row full"></div><div class="ghost-row mid"></div><div class="ghost-row short"></div></div></div>
+<div class="placeholder-foot">Use this tab to answer: “What will we hand downstream?”</div>
+</div>
+<div class="placeholder">
+<div class="surface-label">Discovery</div>
+<h3>Source overlaps and Codex interpretation</h3>
+<div class="placeholder-copy">Higher-level findings, duplicate concept clusters, taxonomy conflicts, and source ownership assumptions sit here for deeper review.</div>
+<div class="placeholder-shell"><div class="placeholder-stack"><div class="ghost-row mid"></div><div class="ghost-row full"></div><div class="ghost-row full"></div><div class="ghost-row short"></div></div></div>
+<div class="placeholder-foot">Use this tab to answer: “Why did Codex reach these suggestions?”</div>
+</div>
+<div class="placeholder">
+<div class="surface-label">Activity</div>
+<h3>Audit trail, reviewer events, and automation handoff</h3>
+<div class="placeholder-copy">This surface can later show approvals, comments, reruns, automation triggers, and package generation events without adding orchestration complexity to the hero flow.</div>
+<div class="placeholder-shell"><div class="placeholder-stack"><div class="ghost-row short"></div><div class="ghost-row mid"></div><div class="ghost-row full"></div><div class="ghost-row mid"></div></div></div>
+<div class="placeholder-foot">Use this tab to answer: “What changed, who changed it, and what happens next?”</div>
+</div>
+</div>
+</section>
+</main>
+</div>
+</body>
+</html>
