@@ -18,6 +18,12 @@ Stage 0 scaffold for a human-in-the-loop semantic translation platform built for
 
 Scaffolding only. No product features should be implemented in this stage.
 
+## Reference docs
+
+- `docs/acquisition-schema-comparison.md`: first-pass acquisition demo schema comparison for semantic mapping design
+- `docs/sql/furnifuture.sql`: Company A Postgres schema draft
+- `docs/sql/pinewoodworks.sql`: Company B Postgres schema draft
+
 ## Local bootstrap
 
 Fresh clone setup:
@@ -68,3 +74,27 @@ scripts/sync-codex-skills.sh
 ```
 
 Restart Codex after syncing new skills.
+
+## Codex timeline
+
+To track major Codex milestones into one local JSON timeline:
+
+```bash
+scripts/install-timeline-hooks.sh
+scripts/timeline-session-start.sh --goal "Describe the task you are working on"
+```
+
+Log milestone summaries during the session:
+
+```bash
+scripts/timeline-log.sh --type planning --summary "Selected the implementation approach"
+scripts/timeline-log.sh --type file_edit --summary "Updated Docker and MCP scaffold" --files Dockerfile docker-compose.yml
+```
+
+End the session when the task is done:
+
+```bash
+scripts/timeline-session-end.sh --summary "Finished the task and verified the changes"
+```
+
+The timeline is written locally to `.codex/timeline.json`. Commit milestones are added automatically after `git commit` once hooks are installed.

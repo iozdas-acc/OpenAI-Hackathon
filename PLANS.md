@@ -17,6 +17,9 @@ Stage 0: scaffold the hackathon repo
 - [x] Install bootstrap dependencies
 - [x] Add local startup scripts
 - [x] Add environment templates
+- [x] Add Codex timeline tracking scaffold
+- [x] Add acquisition schema comparison design doc
+- [x] Add acquisition demo SQL schema drafts
 
 ## Exit criteria
 

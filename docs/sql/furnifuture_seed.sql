@@ -1,0 +1,100 @@
+INSERT INTO furnifuture.erp_material_master (
+  material_id,
+  material_description,
+  material_type_code,
+  lifecycle_status,
+  base_uom,
+  procurement_type,
+  planning_strategy_code,
+  revision_code,
+  default_plant_code,
+  material_group,
+  engineering_owner,
+  is_serial_tracked
+) VALUES
+  ('FF-2000', 'Harbor Dining Table', 'FG', 'RELEASED', 'EA', 'E', 'MTS_STD', 'C', 'PLT-N1', 'DINING', 'eng_furniture', FALSE),
+  ('FF-2001', 'Harbor Table Top', 'HALB', 'RELEASED', 'EA', 'E', 'MTO_CFG', 'C', 'PLT-N1', 'PANELS', 'eng_wood', FALSE),
+  ('FF-2002', 'Turned Leg Assembly', 'HALB', 'RELEASED', 'SET', 'F', 'MTS_STD', 'B', 'PLT-N1', 'LEGSETS', 'eng_hardware', FALSE),
+  ('FF-2003', 'Maple Stain Pack', 'ROH', 'BLOCKED', 'L', 'F', 'VB_REPL', 'B', 'PLT-E2', 'FINISH', 'eng_finish', FALSE),
+  ('FF-2004', 'Export Carton XL', 'PKG', 'RELEASED', 'EA', 'F', 'MTS_STD', NULL, 'PLT-DC1', 'PACKOUT', 'eng_pack', FALSE),
+  ('FF-2005', 'Drawer Rail Kit', 'ROH', 'RELEASED', 'SET', 'F', 'ROP_BUY', 'D', 'PLT-N2', 'FITTINGS', 'eng_hardware', FALSE),
+  ('FF-2006', 'Heritage Sideboard', 'FG', 'DESIGN', 'EA', 'E', 'MTO_CFG', 'D', 'PLT-N2', 'CASEGOODS', 'eng_furniture', TRUE),
+  ('FF-2007', 'Sideboard Panel Blank', 'ROH', 'RELEASED', 'EA', 'F', 'ROP_BUY', 'D', 'PLT-N2', 'PANELS', 'eng_wood', FALSE),
+  ('FF-2008', 'Rework Touch-Up Lacquer', 'ROH', 'BLOCKED', 'L', 'F', 'VB_REPL', NULL, 'PLT-E2', 'FINISH', 'eng_finish', FALSE),
+  ('FF-2009', 'Showroom Display Kit', 'PHAN', 'RELEASED', 'EA', 'X', 'MTO_CFG', 'A', 'PLT-DC1', 'DISPLAY', 'eng_pack', FALSE);
+
+INSERT INTO furnifuture.erp_bom_component (
+  parent_material_id,
+  component_material_id,
+  plant_code,
+  alternative_bom_no,
+  line_no,
+  component_qty,
+  component_uom,
+  component_scrap_pct,
+  phantom_item_flag,
+  component_strategy_code,
+  valid_from_date,
+  valid_to_date,
+  backflush_flag
+) VALUES
+  ('FF-2000', 'FF-2001', 'PLT-N1', '01', 10, 1.0000, 'EA', 1.50, FALSE, 'STOCK', DATE '2024-01-01', NULL, TRUE),
+  ('FF-2000', 'FF-2002', 'PLT-N1', '01', 20, 1.0000, 'SET', 0.75, FALSE, 'STOCK', DATE '2024-01-01', NULL, TRUE),
+  ('FF-2000', 'FF-2003', 'PLT-N1', '02', 30, 0.2000, 'L', 3.00, FALSE, 'SUBSTITUTE', DATE '2024-02-15', NULL, FALSE),
+  ('FF-2000', 'FF-2004', 'PLT-N1', '01', 40, 1.0000, 'EA', 0.00, FALSE, 'NON_STOCK', DATE '2024-01-01', NULL, FALSE),
+  ('FF-2006', 'FF-2007', 'PLT-N2', '01', 10, 2.0000, 'EA', 2.50, FALSE, 'STOCK', DATE '2024-01-20', NULL, TRUE),
+  ('FF-2006', 'FF-2005', 'PLT-N2', '01', 20, 1.0000, 'SET', 1.00, FALSE, 'SUBSTITUTE', DATE '2024-01-20', NULL, TRUE),
+  ('FF-2006', 'FF-2004', 'PLT-N2', '03', 30, 1.0000, 'EA', 0.00, TRUE, 'PHANTOM', DATE '2024-03-01', NULL, FALSE),
+  ('FF-2009', 'FF-2004', 'PLT-DC1', '01', 10, 1.0000, 'EA', 0.00, FALSE, 'NON_STOCK', DATE '2024-03-10', NULL, FALSE),
+  ('FF-2009', 'FF-2003', 'PLT-DC1', '01', 20, 0.1000, 'L', 0.00, TRUE, 'PHANTOM', DATE '2024-03-10', NULL, FALSE),
+  ('FF-2006', 'FF-2008', 'PLT-E2', '99', 50, 0.0500, 'L', 0.00, FALSE, 'NON_STOCK', DATE '2024-04-01', DATE '2024-06-30', FALSE);
+
+INSERT INTO furnifuture.erp_inventory_balance (
+  material_id,
+  plant_code,
+  storage_location_code,
+  stock_status_code,
+  unrestricted_qty,
+  quality_qty,
+  blocked_qty,
+  transfer_qty,
+  special_stock_indicator,
+  lot_no
+) VALUES
+  ('FF-2000', 'PLT-N1', 'FG01', 'UNR', 18.0000, 0.0000, 0.0000, 1.0000, NULL, 'LOT-HT2404'),
+  ('FF-2001', 'PLT-N1', 'WIP1', 'UNR', 24.0000, 2.0000, 0.0000, 0.0000, NULL, 'LOT-TP2404'),
+  ('FF-2002', 'PLT-N1', 'RM10', 'QI', 0.0000, 12.0000, 0.0000, 0.0000, NULL, 'LOT-LG2404'),
+  ('FF-2003', 'PLT-E2', 'CHEM', 'BLK', 0.0000, 0.0000, 9.5000, 0.0000, 'Q', 'LOT-ST2404'),
+  ('FF-2004', 'PLT-DC1', 'PACK', 'UNR', 150.0000, 0.0000, 0.0000, 20.0000, NULL, 'LOT-CX2404'),
+  ('FF-2005', 'PLT-N2', 'RM20', 'QI', 4.0000, 6.0000, 0.0000, 0.0000, 'K', 'LOT-RK2404'),
+  ('FF-2006', 'PLT-N2', 'FG02', 'TRN', 2.0000, 0.0000, 0.0000, 3.0000, NULL, 'LOT-SB2404'),
+  ('FF-2007', 'PLT-N2', 'RM15', 'UNR', 30.0000, 0.0000, 4.0000, 0.0000, NULL, 'LOT-PB2404'),
+  ('FF-2008', 'PLT-E2', 'REWK', 'BLK', 0.0000, 0.0000, 7.0000, 0.0000, 'Q', 'LOT-RL2404'),
+  ('FF-2009', 'PLT-DC1', 'SHOW', 'UNR', 6.0000, 0.0000, 0.0000, 0.0000, 'E', 'LOT-DK2404');
+
+INSERT INTO furnifuture.erp_production_order (
+  production_order_id,
+  material_id,
+  plant_code,
+  order_type_code,
+  order_status_code,
+  planned_qty,
+  released_qty,
+  confirmed_qty,
+  scrapped_qty,
+  scheduled_start_ts,
+  scheduled_end_ts,
+  routing_version,
+  planner_code,
+  reservation_profile
+) VALUES
+  ('FFPO-240401', 'FF-2000', 'PLT-N1', 'PP01', 'REL', 8.0000, 8.0000, 3.0000, 0.0000, TIMESTAMPTZ '2024-04-03 07:00:00+00', TIMESTAMPTZ '2024-04-05 18:00:00+00', 'RV-TBL-03', 'MRP-N1', 'STD_RES'),
+  ('FFPO-240402', 'FF-2000', 'PLT-N1', 'PP01', 'PCNF', 5.0000, 5.0000, 4.0000, 1.0000, TIMESTAMPTZ '2024-04-02 09:00:00+00', TIMESTAMPTZ '2024-04-04 17:00:00+00', 'RV-TBL-03', 'MRP-N1', 'STD_RES'),
+  ('FFPO-240403', 'FF-2006', 'PLT-N2', 'PROTO', 'CRTD', 3.0000, 0.0000, 0.0000, 0.0000, TIMESTAMPTZ '2024-04-06 08:00:00+00', TIMESTAMPTZ '2024-04-10 17:00:00+00', 'RV-SDB-01', 'MRP-N2', 'ENG_HOLD'),
+  ('FFPO-240404', 'FF-2006', 'PLT-N2', 'REWK', 'REL', 2.0000, 2.0000, 1.0000, 0.0000, TIMESTAMPTZ '2024-04-04 06:30:00+00', TIMESTAMPTZ '2024-04-05 14:00:00+00', 'RV-SDB-RW', 'MRP-N2', 'RWK_RES'),
+  ('FFPO-240405', 'FF-2003', 'PLT-E2', 'ENGR', 'CNF', 12.0000, 12.0000, 12.0000, 0.0000, TIMESTAMPTZ '2024-04-01 05:00:00+00', TIMESTAMPTZ '2024-04-01 12:00:00+00', 'RV-FIN-02', 'MRP-E2', 'CHEM_CTL'),
+  ('FFPO-240406', 'FF-2004', 'PLT-DC1', 'PP01', 'REL', 25.0000, 20.0000, 10.0000, 0.0000, TIMESTAMPTZ '2024-04-05 11:00:00+00', TIMESTAMPTZ '2024-04-08 16:00:00+00', 'RV-PKG-05', 'MRP-DC', 'PKG_RES'),
+  ('FFPO-240407', 'FF-2005', 'PLT-N2', 'REWK', 'TECO', 6.0000, 6.0000, 6.0000, 0.0000, TIMESTAMPTZ '2024-03-28 07:30:00+00', TIMESTAMPTZ '2024-03-29 15:00:00+00', 'RV-RAIL-02', 'MRP-N2', 'SRV_RES'),
+  ('FFPO-240408', 'FF-2007', 'PLT-N2', 'PP01', 'CNF', 10.0000, 10.0000, 10.0000, 1.0000, TIMESTAMPTZ '2024-04-03 08:00:00+00', TIMESTAMPTZ '2024-04-04 20:00:00+00', 'RV-PNL-07', 'MRP-N2', 'WOOD_RES'),
+  ('FFPO-240409', 'FF-2009', 'PLT-DC1', 'ENGR', 'REL', 4.0000, 4.0000, 1.0000, 0.0000, TIMESTAMPTZ '2024-04-02 13:00:00+00', TIMESTAMPTZ '2024-04-03 18:00:00+00', 'RV-DSP-01', 'MRP-DC', 'SHOW_RES'),
+  ('FFPO-240410', 'FF-2008', 'PLT-E2', 'REWK', 'PCNF', 3.0000, 3.0000, 1.0000, 0.0000, TIMESTAMPTZ '2024-04-01 10:00:00+00', TIMESTAMPTZ '2024-04-02 15:00:00+00', 'RV-LAC-01', 'MRP-E2', 'CHEM_CTL');

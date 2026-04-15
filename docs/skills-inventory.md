@@ -50,6 +50,7 @@ This repo vendors a first-pass skill base for the hackathon project. The repo co
 
 - `repo-bootstrap`
 - `skill-creator`
+- `codex-timeline-tracker`
 
 ### Hackathon
 
