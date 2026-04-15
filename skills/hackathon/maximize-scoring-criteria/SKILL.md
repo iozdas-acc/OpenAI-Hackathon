@@ -21,6 +21,15 @@ If multiple sources disagree, prefer the most recent user-provided criteria.
 
 Do not hardcode rubric contents into this skill. Treat the rubric as external context that may change between events or teams.
 
+Also load any active delivery constraints from the same sources, such as:
+
+- timebox
+- team size
+- submission format
+- live demo duration
+- Q&A duration
+- anything judges explicitly require to be shown live
+
 ## Required Framing
 
 Before proposing or implementing work:
@@ -77,6 +86,8 @@ Optimize for a crisp, convincing story.
 - Show both the outcome and the workflow.
 - Make the value legible to non-engineering judges.
 - Avoid hidden infrastructure work unless it directly strengthens the story being shown.
+- If live demo time is constrained, optimize for one working flow over multiple partial flows.
+- If the rules require a real live demo, do not treat slides, static HTML explanations, or PDFs as substitutes.
 
 ## Working Heuristics
 
@@ -86,6 +97,7 @@ When several options are available, prefer the one that:
 2. proves meaningful Codex leverage
 3. solves a concrete partner problem
 4. leaves behind reusable assets or patterns
+5. fits the actual team size and event timebox
 
 If two options are otherwise equal, choose the simpler one with the clearer demo narrative.
 
