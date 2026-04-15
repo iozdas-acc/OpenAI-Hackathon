@@ -210,6 +210,16 @@ async function loadDemoRun(): Promise<DemoRunResponse> {
   return data;
 }
 
+async function loadPinnedDemoRun(runId: string | null): Promise<DemoRunResponse> {
+  const search = runId ? `?runId=${encodeURIComponent(runId)}` : "";
+  const response = await fetch(`/api/demo/run${search}`, { cache: "no-store" });
+  const data = (await response.json()) as DemoRunResponse;
+  if (!response.ok) {
+    throw new Error(data.selectionReason || "Could not load demo run.");
+  }
+  return data;
+}
+
 function createId(prefix: string): string {
   return `${prefix}-${Math.random().toString(36).slice(2, 10)}`;
 }
@@ -344,6 +354,8 @@ export function MigrationReviewWorkspace() {
     error: null,
     loading: true,
   });
+  const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>(INITIAL_MESSAGES);
   const [composer, setComposer] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
@@ -384,8 +396,9 @@ export function MigrationReviewWorkspace() {
 
     const refreshDemo = async () => {
       try {
-        const data = await loadDemoRun();
+        const data = await loadPinnedDemoRun(selectedRunId);
         if (!cancelled) {
+          setSelectedRunId((current) => current ?? data.selectedRunId);
           setDemoState({ data, error: null, loading: false });
         }
       } catch (error) {
@@ -405,7 +418,7 @@ export function MigrationReviewWorkspace() {
       cancelled = true;
       window.clearInterval(timer);
     };
-  }, []);
+  }, [selectedRunId]);
 
   useEffect(() => {
     transcriptEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
@@ -505,7 +518,8 @@ export function MigrationReviewWorkspace() {
   }, [run?.id, run?.status]);
 
   async function refreshDemoState() {
-    const data = await loadDemoRun();
+    const data = await loadPinnedDemoRun(selectedRunId);
+    setSelectedRunId((current) => current ?? data.selectedRunId);
     setDemoState({ data, error: null, loading: false });
   }
 
@@ -515,17 +529,21 @@ export function MigrationReviewWorkspace() {
     }
 
     setActionPending(reviewType);
+    setActionError(null);
     try {
       const response = await fetch(`/api/backend/runs/${run.id}/reviews/${reviewType}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ decision, notes }),
+        signal: AbortSignal.timeout(4000),
       });
       if (!response.ok) {
         const payload = (await response.json()) as { detail?: string };
         throw new Error(payload.detail ?? `Review submission failed with status ${response.status}.`);
       }
       await refreshDemoState();
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : "Review submission failed.");
     } finally {
       setActionPending(null);
     }
@@ -537,17 +555,21 @@ export function MigrationReviewWorkspace() {
     }
 
     setActionPending("migrate");
+    setActionError(null);
     try {
       const response = await fetch(`/api/backend/runs/${run.id}/migrate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ notes: "Operator triggered demo migration from the review workspace." }),
+        signal: AbortSignal.timeout(4000),
       });
       if (!response.ok) {
         const payload = (await response.json()) as { detail?: string };
         throw new Error(payload.detail ?? `Migration trigger failed with status ${response.status}.`);
       }
       await refreshDemoState();
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : "Migration trigger failed.");
     } finally {
       setActionPending(null);
     }
@@ -697,6 +719,9 @@ export function MigrationReviewWorkspace() {
 
   const migrateVisible = run?.status === "migration_ready" || run?.status === "migration_completed";
   const migrationResult = [...events].reverse().find((event) => event.type === "migration_completed");
+  const canApproveStructure = run?.status === "awaiting_crawl_review";
+  const canApproveReasoning = run?.status === "awaiting_reasoning_review";
+  const canApproveMapping = run?.status === "awaiting_mapping_review";
 
   return (
     <main className="orchestrator-page">
@@ -710,18 +735,19 @@ export function MigrationReviewWorkspace() {
               directly in the UI, then trigger the mock migration step for the demo.
             </p>
           </div>
-          <div className="status-stack">
-            <div className="status-card">
-              <div className="status-kicker">Current state</div>
-              <strong>{progressLabel}</strong>
-              <span>Backend: {backendLabel}</span>
-              <span>Run: {run ? `${run.id.slice(0, 8)} · ${run.status}` : "Waiting for demo run"}</span>
-            </div>
-            <div className="status-chips">
-              <span className="status-chip">{sourceTables.length > 0 ? "Source package loaded" : "Source pending"}</span>
-              <span className="status-chip">{targetTables.length > 0 ? "Target database read" : "Target pending"}</span>
-              <span className="status-chip accent">Graph score {graphScore}%</span>
-            </div>
+            <div className="status-stack">
+              <div className="status-card">
+                <div className="status-kicker">Current state</div>
+                <strong>{progressLabel}</strong>
+                <span>Backend: {backendLabel}</span>
+                <span>Run: {run ? `${run.id.slice(0, 8)} · ${run.status}` : "Waiting for demo run"}</span>
+              </div>
+              {actionError ? <div className="inline-error">{actionError}</div> : null}
+              <div className="status-chips">
+                <span className="status-chip">{sourceTables.length > 0 ? "Source package loaded" : "Source pending"}</span>
+                <span className="status-chip">{targetTables.length > 0 ? "Target database read" : "Target pending"}</span>
+                <span className="status-chip accent">Graph score {graphScore}%</span>
+              </div>
           </div>
         </header>
 
@@ -885,7 +911,7 @@ export function MigrationReviewWorkspace() {
                       type="button"
                       className="secondary-button"
                       onClick={() => void submitReview("crawl", "approve", "Operator approved the discovered structure from the UI.")}
-                      disabled={isStreaming || actionPending !== null || structureCheckpoint.state === "approved" || !run}
+                      disabled={isStreaming || actionPending !== null || !run || !canApproveStructure}
                     >
                       {actionPending === "crawl" ? "Submitting..." : "Approve structure"}
                     </button>
@@ -893,7 +919,7 @@ export function MigrationReviewWorkspace() {
                       type="button"
                       className="ghost-button"
                       onClick={() => void submitReview("crawl", "request_changes", "Operator requested a structure rescan from the UI.")}
-                      disabled={isStreaming || actionPending !== null || !run}
+                      disabled={isStreaming || actionPending !== null || !run || !canApproveStructure}
                     >
                       Request rescan
                     </button>
@@ -918,7 +944,7 @@ export function MigrationReviewWorkspace() {
                             choice,
                           )
                         }
-                        disabled={isStreaming || actionPending !== null || !run}
+                        disabled={isStreaming || actionPending !== null || !run || !canApproveReasoning}
                       >
                         {choice}
                       </button>
@@ -936,7 +962,7 @@ export function MigrationReviewWorkspace() {
                       type="button"
                       className="primary-button"
                       onClick={() => void submitReview("mappings", "approve", "Operator approved the mapping package from the UI.")}
-                      disabled={isStreaming || actionPending !== null || mappingCheckpoint.state === "approved" || !run}
+                      disabled={isStreaming || actionPending !== null || !run || !canApproveMapping}
                     >
                       {actionPending === "mappings" ? "Submitting..." : "Approve suggestion"}
                     </button>
@@ -944,7 +970,7 @@ export function MigrationReviewWorkspace() {
                       type="button"
                       className="ghost-button"
                       onClick={() => void submitReview("mappings", "reject", "Operator rejected the mapping package from the UI.")}
-                      disabled={isStreaming || actionPending !== null || !run}
+                      disabled={isStreaming || actionPending !== null || !run || !canApproveMapping}
                     >
                       Reject
                     </button>
@@ -952,7 +978,7 @@ export function MigrationReviewWorkspace() {
                       type="button"
                       className="ghost-button"
                       onClick={() => void submitReview("mappings", "request_changes", "Operator escalated the mapping package from the UI.")}
-                      disabled={isStreaming || actionPending !== null || !run}
+                      disabled={isStreaming || actionPending !== null || !run || !canApproveMapping}
                     >
                       Escalate
                     </button>

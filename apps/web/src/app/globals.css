@@ -254,6 +254,16 @@ textarea {
   gap: 8px;
 }
 
+.inline-error {
+  padding: 12px 14px;
+  border: 1px solid rgba(255, 157, 151, 0.24);
+  border-radius: 16px;
+  background: rgba(96, 26, 24, 0.28);
+  color: #ffd0cc;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
 .status-chip,
 .mini-pill,
 .stream-pill,

@@ -4,6 +4,7 @@ import path from "node:path";
 import { NextResponse } from "next/server";
 
 const DEFAULT_API_URL = "http://localhost:8000";
+const FIXED_DEMO_RUN_ID = "7ae72b8dcc1e4f52b71bb78a3cfb604a";
 
 type StoredRun = {
   id: string;
@@ -60,11 +61,14 @@ function selectDemoRun(runs: StoredRun[]): StoredRun | null {
   })[0];
 }
 
-export async function GET(): Promise<Response> {
+export async function GET(request: Request): Promise<Response> {
   try {
     const runsPath = await resolveRunsPath();
     const raw = JSON.parse(await readFile(runsPath, "utf-8")) as Record<string, StoredRun>;
-    const selected = selectDemoRun(Object.values(raw));
+    const requestedRunId = new URL(request.url).searchParams.get("runId");
+    const selected =
+      raw[requestedRunId || FIXED_DEMO_RUN_ID] ??
+      (requestedRunId ? null : selectDemoRun(Object.values(raw)));
 
     if (!selected) {
       return NextResponse.json(
@@ -88,11 +92,14 @@ export async function GET(): Promise<Response> {
 
     const payload = (await response.json()) as Record<string, unknown>;
     return NextResponse.json(
-      {
-        selectedRunId: selected.id,
-        selectionReason: `Selected the freshest reviewable run in status ${selected.status}.`,
-        ...payload,
-      },
+        {
+          selectedRunId: selected.id,
+          selectionReason:
+            selected.id === FIXED_DEMO_RUN_ID
+              ? `Pinned demo run ${selected.id.slice(0, 8)} in status ${selected.status}.`
+              : `Selected the freshest reviewable run in status ${selected.status}.`,
+          ...payload,
+        },
       { status: response.ok ? 200 : response.status },
     );
   } catch (error) {

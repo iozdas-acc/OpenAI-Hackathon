@@ -573,13 +573,19 @@ async def _continue_after_crawl_review(run_id: str) -> None:
             instructions=run.instructions,
             user_notes=run.metadata.get("user_notes"),
             run_id=run_id,
-            graph_context={"nodes": [node.dict() for node in snapshot.nodes], "edges": [edge.dict() for edge in snapshot.edges]},
+            graph_context={
+                "nodes": [_model_to_json_dict(node) for node in snapshot.nodes],
+                "edges": [_model_to_json_dict(edge) for edge in snapshot.edges],
+            },
         )
 
         result = _coerce_result_payload(workflow_output)
         reasoning_graph = result.get("graph", {})
         merged_graph = _merge_graph_payloads(
-            {"nodes": [node.dict() for node in snapshot.nodes], "edges": [edge.dict() for edge in snapshot.edges]},
+            {
+                "nodes": [_model_to_json_dict(node) for node in snapshot.nodes],
+                "edges": [_model_to_json_dict(edge) for edge in snapshot.edges],
+            },
             reasoning_graph,
         )
         result["graph"] = merged_graph
@@ -615,10 +621,16 @@ async def _continue_after_reasoning_review(run_id: str) -> None:
         mapping_graph = await asyncio.to_thread(
             propose_mapping_candidates,
             run_id,
-            {"nodes": [node.dict() for node in snapshot.nodes], "edges": [edge.dict() for edge in snapshot.edges]},
+            {
+                "nodes": [_model_to_json_dict(node) for node in snapshot.nodes],
+                "edges": [_model_to_json_dict(edge) for edge in snapshot.edges],
+            },
         )
         merged_graph = _merge_graph_payloads(
-            {"nodes": [node.dict() for node in snapshot.nodes], "edges": [edge.dict() for edge in snapshot.edges]},
+            {
+                "nodes": [_model_to_json_dict(node) for node in snapshot.nodes],
+                "edges": [_model_to_json_dict(edge) for edge in snapshot.edges],
+            },
             mapping_graph,
         )
         store.save_graph_snapshot(_build_graph_snapshot(run_id, merged_graph))
@@ -643,6 +655,14 @@ async def _continue_after_reasoning_review(run_id: str) -> None:
 
 def _utcnow() -> str:
     return datetime.utcnow().isoformat() + "Z"
+
+
+def _model_to_json_dict(model: Any) -> Dict[str, Any]:
+    if hasattr(model, "model_dump"):
+        return model.model_dump(mode="json")
+    if hasattr(model, "dict"):
+        return model.dict()
+    return dict(model)
 
 
 def _resolve_run_connections(project_id: str, run_id: str) -> tuple[Any, Any]:
