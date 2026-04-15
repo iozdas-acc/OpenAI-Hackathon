@@ -1,16 +1,181 @@
 services:
-  postgres:
-    image: postgres:16
-    container_name: semantic-platform-postgres
-    restart: unless-stopped
-    ports:
-      - "${POSTGRES_PORT:-5432}:5432"
-    environment:
-      POSTGRES_DB: "${POSTGRES_DB:-semantic_platform}"
-      POSTGRES_USER: "${POSTGRES_USER:-postgres}"
-      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:-postgres}"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
+    codex_vscode:
+        build:
+          context: .
+          dockerfile: Dockerfile
+          args:
+            buildno: 1
+        image: codex_vscode:latest
+        container_name: vscodex
+        hostname: vscodex
+        ports: 
+            - "8401:8080"
+            - "8400:8400"
+            - "8002:8002"
+            - "8500-8600:8500-8600"
+            - "1455:1455"
+        volumes:
+            - ./services/mcp:/code/services/mcp
+        extra_hosts:
+            - "host.docker.internal:host-gateway"
+        environment:
+          - PASSWORD=${PASSWORD}
+          - OPENAI_API_KEY=${OPENAI_API_KEY}
+          - GITHUB_TOKEN=${GITHUB_TOKEN}
+          - POSTGRES_HOST=postgres
+          - POSTGRES_PORT=5432
+          - POSTGRES_USER=${POSTGRES_USER:-trainer}
+          - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-trainer}
+          - POSTGRES_DB=${POSTGRES_DB:-trainerdb}
+          - BIGQUERY_EMULATOR_HOST=bigquery-emulator:9050
+          - GOOGLE_CLOUD_PROJECT=${GOOGLE_CLOUD_PROJECT:-local-project}
+          - PGHOST=postgres
+          - PGPORT=5432
+          - PGUSER=${POSTGRES_USER:-trainer}
+          - PGPASSWORD=${POSTGRES_PASSWORD:-trainer}
+          - PGDATABASE=${POSTGRES_DB:-trainerdb}
+          - DATABASE_URI=postgresql://${POSTGRES_USER:-trainer}:${POSTGRES_PASSWORD:-trainer}@postgres:5432/${POSTGRES_DB:-trainerdb}
+          - ORACLE_USER=${ORACLE_USER}
+          - ORACLE_PASSWORD=${ORACLE_PASSWORD}
+          - ORACLE_HOST=${ORACLE_HOST}
+          - ORACLE_PORT=${ORACLE_PORT}
+          - ORACLE_SERVICE=${ORACLE_SERVICE}
+          - ORACLE_MCP_SCRIPT=${ORACLE_MCP_SCRIPT:-/hackathon/services/mcp/oracle_mcp_server.py}
+        depends_on:
+            - postgres
+            - bigquery-emulator
+        networks:
+            - backend
+
+    # ── Postgres ────────────────────────────────────────────────────────────────
+    postgres:
+        image: postgres:15
+        container_name: postgres
+        hostname: postgres
+        restart: unless-stopped
+        environment:
+          - POSTGRES_USER=${POSTGRES_USER:-trainer}
+          - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-trainer}
+          - POSTGRES_DB=${POSTGRES_DB:-trainerdb}
+        ports:
+          - "5432:5432"
+        volumes:
+            - postgres_data:/var/lib/postgresql/data
+            # - ./data/postgres:/var/lib/postgresql/data
+            # - ./init-postgres/01_pg_hba.conf:/var/lib/postgresql/data/pg_hba.conf
+        networks:
+            - backend
+      
+    # ── PGAdmin ─────────────────────────────────────────────────────────────────
+    pgadmin:
+        image: dpage/pgadmin4:latest
+        container_name: pgadmin
+        hostname: pgadmin
+        restart: unless-stopped
+        environment:
+            - PGADMIN_DEFAULT_EMAIL=${PGADMIN_EMAIL:-admin@local.dev}
+            - PGADMIN_DEFAULT_PASSWORD=${PGADMIN_PASSWORD:-admin}
+        ports:
+            - "5050:80"
+        volumes:
+            - pgadmin_data_hackathon:/var/lib/pgadmin
+            # - ./data/pgadmin_data:/var/lib/pgadmin
+        depends_on:
+            - postgres
+        networks:
+            - backend
+
+    # ── BigQuery Emulator ────────────────────────────────────────────────────────
+    bigquery-emulator:
+        image: ghcr.io/goccy/bigquery-emulator:latest
+        container_name: bigquery-emulator
+        platform: linux/x86_64 
+        hostname: bigquery-emulator
+        restart: unless-stopped
+        command:
+            - --project=${GOOGLE_CLOUD_PROJECT:-local-project}
+            - --port=9050
+            - --grpc-port=9060
+            - --database=/data/bigquery.db
+        ports:
+            - "9050:9050"
+            - "9060:9060"
+        volumes:
+            # - bigquery_data:/data
+            - ./data/bigquery_data:/data
+        networks:
+            - backend
+
+    # ── BigQuery UI ──────────────────────────────────────────────────────────────
+    bigquery-ui:
+        platform: linux/x86_64
+        image: ghcr.io/filipecaixeta/bigquery-emulator-ui:latest
+        container_name: bigquery-ui
+        hostname: bigquery-ui
+        restart: unless-stopped
+        environment:
+            - BIGQUERY_PROJECT=${GOOGLE_CLOUD_PROJECT:-local-project}
+            - BIGQUERY_ENDPOINT=http://bigquery-emulator:9050
+        ports:
+            - "8092:8000"
+        depends_on:
+            - bigquery-emulator
+        networks:
+            - backend
+    
+    oracle-db:
+        # image: gvenzl/oracle-xe:21-slim
+        image: gvenzl/oracle-free:23-slim
+        container_name: oracle-legacy-db
+        hostname: oracledb
+        restart: unless-stopped
+        shm_size: "2g"
+        deploy:
+          resources:
+            limits:
+              memory: 4g
+        ports:
+          - "1521:1521"   # Oracle listener
+          - "5500:5500"   # Oracle Enterprise Manager (EM) Express
+        environment:
+          ORACLE_PASSWORD: ${ORACLE_PASSWORD}       # SYS / SYSTEM password
+          ORACLE_DATABASE: ${ORACLE_SERVICE}           # pluggable database name
+          APP_USER: ${ORACLE_USER}                  # application-level user
+          APP_USER_PASSWORD: ${ORACLE_PASSWORD}     # application-level password
+        volumes:
+          - oracle_data:/opt/oracle/oradata     # persist datafiles across restarts
+        healthcheck:
+          test: ["CMD", "healthcheck.sh"]
+          interval: 30s
+          timeout: 10s
+          retries: 5
+          start_period: 120s                    # Oracle can take a while to init
+        networks:
+            - backend
+
+    cloudbeaver:
+        image: dbeaver/cloudbeaver:latest
+        container_name: cloudbeaver
+        hostname: cloudbeaver
+        restart: unless-stopped
+        ports:
+          - "8978:8978"                         # Web UI
+        volumes:
+          - cloudbeaver_data:/opt/cloudbeaver/workspace
+        networks:
+            - backend
+        depends_on:
+          oracle-db:
+            condition: service_healthy           # wait for Oracle to be ready
 
 volumes:
-  postgres_data:
+    persistent:
+    postgres_data:
+    # bigquery_data:
+    pgadmin_data_hackathon:
+    oracle_data:
+    cloudbeaver_data:
+
+networks:
+    backend:
+        driver: bridge

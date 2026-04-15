@@ -1,0 +1,5 @@
+*
+!Dockerfile
+!setup_env.sh
+!services/mcp/**
+!vscode_extensions/**
