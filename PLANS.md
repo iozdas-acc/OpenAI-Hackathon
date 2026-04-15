@@ -14,6 +14,10 @@ Until then:
 - avoid locking in feature scope too early
 - favor scaffolding, context, and reusable setup over speculative implementation
 
+Hackathon-day runbook:
+
+- `docs/hackathon-runbook.md`
+
 ## Tasks
 
 - [x] Create repo-managed skill base
