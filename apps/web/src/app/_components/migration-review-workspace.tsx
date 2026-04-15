@@ -18,9 +18,11 @@ type ProbeState = {
   loading: boolean;
 };
 
-type ChatRole = "user" | "assistant";
-type CheckpointState = "pending" | "approved" | "needs_input" | "escalated" | "rejected";
+type ReviewDecision = "approve" | "reject" | "defer" | "request_changes";
+type ReviewState = "pending" | "approved" | "needs_input" | "escalated" | "rejected";
 type GraphPhase = "crawl" | "shape" | "reason" | "question" | "mapping";
+
+type ChatRole = "user" | "assistant";
 
 type Message = {
   id: string;
@@ -30,93 +32,164 @@ type Message = {
 };
 
 type Checkpoint = {
-  id: string;
+  id: "structure" | "clarify" | "mapping";
   label: string;
   title: string;
   description: string;
-  state: CheckpointState;
+  state: ReviewState;
 };
 
-type ActivityItem = {
+type ReviewRecord = {
+  decision?: ReviewDecision;
+  notes?: string;
+  submitted_at?: string;
+};
+
+type RunRecord = {
   id: string;
-  text: string;
+  project_id: string;
+  status: string;
+  instructions: string;
+  metadata?: {
+    reviews?: {
+      crawl_review?: ReviewRecord;
+      reasoning_review?: ReviewRecord;
+      mapping_review?: ReviewRecord;
+    };
+    crawl_artifacts?: {
+      source_profile?: ProfileRecord;
+      target_profile?: ProfileRecord & { warnings?: Array<{ message?: string }> };
+    };
+    migration_request?: {
+      notes?: string;
+      requested_at?: string;
+    };
+    error_message?: string;
+  };
 };
 
-const SOURCE_FIELD = "oracle.crm_customer.status_cd";
-const RECOMMENDED_TARGET = "public.customer_status";
-const ALTERNATIVE_TARGET = "public.account_state";
-const SEMANTIC_CONCEPT = "Customer standing";
+type QuestionRecord = {
+  prompt?: string;
+};
 
-const INITIAL_MESSAGES: Message[] = [
-  {
-    id: "m-1",
-    role: "assistant",
-    content: `I recommend mapping ${SOURCE_FIELD} to ${RECOMMENDED_TARGET}. I found stronger customer-level evidence than account-lifecycle evidence, but I still need your checkpoint approvals.`,
-  },
-  {
-    id: "m-2",
-    role: "assistant",
-    content:
-      "The graph already contains the source field, the proposed semantic concept, and two candidate targets. Review the structure first, then answer the ambiguity question, then approve or reject the mapping.",
-  },
-];
+type ConfidenceRecord = {
+  overall?: number;
+  by_entity?: Record<string, number>;
+};
+
+type ResultRecord = {
+  summary?: string;
+  questions?: QuestionRecord[];
+  confidence?: ConfidenceRecord;
+};
+
+type GraphNodeRecord = {
+  id?: string;
+  label?: string;
+  type?: string;
+  data?: {
+    role?: string;
+    data_type?: string;
+  };
+};
+
+type GraphEdgeRecord = {
+  source?: string;
+  target?: string;
+  relation?: string;
+};
+
+type GraphRecord = {
+  nodes?: GraphNodeRecord[];
+  edges?: GraphEdgeRecord[];
+};
+
+type EventRecord = {
+  id: string;
+  type: string;
+  timestamp?: string;
+  payload?: Record<string, unknown>;
+};
+
+type TableRecord = {
+  name?: string;
+  schema?: string;
+  columns?: Array<{ name?: string; type?: string }>;
+  sample_rows?: Array<Record<string, unknown>>;
+};
+
+type ProfileRecord = {
+  database?: {
+    name?: string;
+    kind?: string;
+    role?: string;
+  };
+  schemas?: Array<{ name?: string }>;
+  tables?: TableRecord[];
+  warnings?: Array<{ message?: string }>;
+};
+
+type DemoRunResponse = {
+  selectedRunId: string | null;
+  selectionReason: string;
+  run: RunRecord | null;
+  result: ResultRecord | null;
+  graph: GraphRecord | null;
+  events: EventRecord[];
+};
+
+const DEFAULT_SOURCE_FIELD = "core.customers.customer_id";
+const DEFAULT_PRIMARY_TARGET = "public.customers.customer_id";
+const DEFAULT_SECONDARY_TARGET = "public.customers";
+const DEFAULT_CONCEPT = "Customer identity";
+const DEFAULT_QUESTION =
+  "Does this source field represent the canonical customer identifier we should preserve into the target model?";
 
 const INITIAL_CHECKPOINTS: Checkpoint[] = [
   {
     id: "structure",
     label: "Checkpoint 1",
     title: "Approve discovered structure",
-    description:
-      "Confirm that the source field belongs in the customer-status reasoning path before Codex hardens the graph.",
-    state: "needs_input",
+    description: "Confirm the source and target structures are correct before semantic reasoning continues.",
+    state: "pending",
   },
   {
     id: "clarify",
     label: "Checkpoint 2",
-    title: "Resolve the ambiguity",
-    description:
-      "Codex needs one human answer on whether `status_cd` reflects customer standing or account lifecycle in the merged flow.",
+    title: "Approve reasoning checkpoint",
+    description: "Review Codex reasoning and capture the key human clarification that decides the mapping.",
     state: "pending",
   },
   {
     id: "mapping",
     label: "Checkpoint 3",
-    title: "Approve the suggestion",
-    description:
-      "Accept, reject, or escalate the recommended target mapping after the evidence is clear enough to trust.",
+    title: "Approve mapping package",
+    description: "Accept, reject, or escalate the final candidate package before migration is exposed.",
     state: "pending",
   },
 ];
 
-const DATABASE_PROMPTS = [
+const INITIAL_MESSAGES: Message[] = [
   {
-    label: "Explain evidence",
-    prompt: `Explain briefly why ${SOURCE_FIELD} is better aligned with ${RECOMMENDED_TARGET} than ${ALTERNATIVE_TARGET}.`,
-  },
-  {
-    label: "Show join clues",
-    prompt:
-      "Show the strongest join clues between the Oracle source tables and the Supabase customer model.",
-  },
-  {
-    label: "Ask the blocker",
-    prompt:
-      "Ask the single most important human clarification question you still need for this mapping decision.",
-  },
-  {
-    label: "Compare mappings",
-    prompt: `Compare ${RECOMMENDED_TARGET} and ${ALTERNATIVE_TARGET} for this source field in one short decision memo.`,
-  },
-  {
-    label: "Prepare package",
-    prompt: "Prepare a short migration-ready package summary based on the current checkpoint state.",
+    id: "m-1",
+    role: "assistant",
+    content:
+      "I am watching the active migration review run. Use the touchpoints on the right to approve structure, reasoning, and the final mapping package.",
   },
 ];
 
+const DATABASE_PROMPTS = [
+  { label: "Explain evidence", prompt: "Explain the strongest evidence behind the current recommendation." },
+  { label: "Show join clues", prompt: "Summarize the strongest structural join clues between source and target." },
+  { label: "Ask blocker", prompt: "Ask the single human question that would reduce semantic risk the most." },
+  { label: "Compare options", prompt: "Compare the primary mapping and the fallback in one short decision memo." },
+  { label: "Prepare package", prompt: "Summarize what is approved and what still blocks migration." },
+];
+
 const CLARIFICATION_CHOICES = [
-  "This code is customer-level standing",
-  "This code is account lifecycle",
-  "Both meanings exist, escalate it",
+  "Approve reasoning and keep the current recommendation",
+  "Approve reasoning but note semantic ambiguity for later review",
+  "Stop here and request changes from the analyst",
 ];
 
 async function loadProbe(): Promise<BackendProbe> {
@@ -128,16 +201,132 @@ async function loadProbe(): Promise<BackendProbe> {
   return data;
 }
 
+async function loadDemoRun(): Promise<DemoRunResponse> {
+  const response = await fetch("/api/demo/run", { cache: "no-store" });
+  const data = (await response.json()) as DemoRunResponse;
+  if (!response.ok) {
+    throw new Error(data.selectionReason || "Could not load demo run.");
+  }
+  return data;
+}
+
 function createId(prefix: string): string {
   return `${prefix}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
-function statusLabel(state: CheckpointState): string {
+function statusLabel(state: ReviewState): string {
   if (state === "approved") return "Approved";
   if (state === "needs_input") return "Needs input";
   if (state === "escalated") return "Escalated";
   if (state === "rejected") return "Rejected";
   return "Queued";
+}
+
+function classifyReview(decision: ReviewDecision | undefined, fallback: ReviewState): ReviewState {
+  if (decision === "approve") return "approved";
+  if (decision === "reject") return "rejected";
+  if (decision === "request_changes" || decision === "defer") return "escalated";
+  return fallback;
+}
+
+function deriveCheckpoints(run: RunRecord | null): Checkpoint[] {
+  const checkpoints = INITIAL_CHECKPOINTS.map((checkpoint) => ({ ...checkpoint }));
+  if (!run) {
+    return checkpoints;
+  }
+
+  const reviews = run.metadata?.reviews ?? {};
+  const status = run.status;
+
+  if (status === "awaiting_crawl_review") {
+    checkpoints[0].state = classifyReview(reviews.crawl_review?.decision, "needs_input");
+  }
+
+  if (status === "awaiting_reasoning_review") {
+    checkpoints[0].state = classifyReview(reviews.crawl_review?.decision, "approved");
+    checkpoints[1].state = classifyReview(reviews.reasoning_review?.decision, "needs_input");
+  }
+
+  if (status === "awaiting_mapping_review") {
+    checkpoints[0].state = classifyReview(reviews.crawl_review?.decision, "approved");
+    checkpoints[1].state = classifyReview(reviews.reasoning_review?.decision, "approved");
+    checkpoints[2].state = classifyReview(reviews.mapping_review?.decision, "needs_input");
+  }
+
+  if (["migration_ready", "migrating", "migration_completed", "completed"].includes(status)) {
+    checkpoints[0].state = classifyReview(reviews.crawl_review?.decision, "approved");
+    checkpoints[1].state = classifyReview(reviews.reasoning_review?.decision, "approved");
+    checkpoints[2].state = classifyReview(reviews.mapping_review?.decision, "approved");
+  }
+
+  if (status === "failed") {
+    checkpoints[0].state = classifyReview(reviews.crawl_review?.decision, "rejected");
+    checkpoints[1].state = classifyReview(reviews.reasoning_review?.decision, "pending");
+    checkpoints[2].state = classifyReview(reviews.mapping_review?.decision, "pending");
+  }
+
+  return checkpoints;
+}
+
+function deriveGraphPhase(status: string | undefined): GraphPhase {
+  if (status === "awaiting_crawl_review") return "crawl";
+  if (status === "awaiting_reasoning_review") return "question";
+  if (status === "awaiting_mapping_review") return "reason";
+  if (["migration_ready", "migrating", "migration_completed", "completed"].includes(status ?? "")) return "mapping";
+  return "shape";
+}
+
+function deriveProgressLabel(status: string | undefined): string {
+  if (status === "awaiting_crawl_review") return "Waiting on structure approval";
+  if (status === "awaiting_reasoning_review") return "Waiting on reasoning approval";
+  if (status === "awaiting_mapping_review") return "Waiting on mapping approval";
+  if (status === "migration_ready") return "Ready for operator-triggered migration";
+  if (status === "migration_completed") return "Mock migration completed";
+  if (status === "failed") return "Run needs intervention";
+  if (status === "running") return "Orchestration is running";
+  return "Suggestion assembled";
+}
+
+function formatTimestamp(value: string | undefined): string {
+  if (!value) {
+    return "just now";
+  }
+
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return value;
+  }
+
+  return parsed.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+}
+
+function buildActivity(events: EventRecord[]): Array<{ id: string; text: string }> {
+  return events
+    .slice(-6)
+    .reverse()
+    .map((event) => ({
+      id: event.id,
+      text: `${formatTimestamp(event.timestamp)} · ${event.type.replaceAll("_", " ")}`,
+    }));
+}
+
+function extractFieldLabels(graph: GraphRecord | null): {
+  sourceField: string;
+  recommendedTarget: string;
+  alternativeTarget: string;
+  semanticConcept: string;
+} {
+  const nodes = graph?.nodes ?? [];
+  const sourceColumns = nodes.filter((node) => node.type === "column" && node.data?.role === "source");
+  const targetColumns = nodes.filter((node) => node.type === "column" && node.data?.role === "target");
+  const semanticNode = nodes.find((node) => node.type === "semantic_concept" || node.type === "entity");
+
+  return {
+    sourceField: sourceColumns[0]?.label ?? DEFAULT_SOURCE_FIELD,
+    recommendedTarget: targetColumns[0]?.label ?? DEFAULT_PRIMARY_TARGET,
+    alternativeTarget: targetColumns[1]?.label ?? targetColumns[0]?.label ?? DEFAULT_SECONDARY_TARGET,
+    semanticConcept: semanticNode?.label ?? DEFAULT_CONCEPT,
+  };
 }
 
 export function MigrationReviewWorkspace() {
@@ -146,19 +335,19 @@ export function MigrationReviewWorkspace() {
     error: null,
     loading: true,
   });
+  const [demoState, setDemoState] = useState<{
+    data: DemoRunResponse | null;
+    error: string | null;
+    loading: boolean;
+  }>({
+    data: null,
+    error: null,
+    loading: true,
+  });
   const [messages, setMessages] = useState<Message[]>(INITIAL_MESSAGES);
-  const [checkpoints, setCheckpoints] = useState<Checkpoint[]>(INITIAL_CHECKPOINTS);
-  const [activity, setActivity] = useState<ActivityItem[]>([
-    { id: "a-1", text: `Codex suggested ${RECOMMENDED_TARGET} as the primary target for ${SOURCE_FIELD}.` },
-    { id: "a-2", text: `A second candidate, ${ALTERNATIVE_TARGET}, remains visible in the graph as the fallback.` },
-  ]);
   const [composer, setComposer] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
-  const [graphPhase, setGraphPhase] = useState<GraphPhase>("shape");
-  const [graphScore, setGraphScore] = useState(68);
-  const [focusQuestion, setFocusQuestion] = useState(
-    "Does `status_cd` represent customer standing or account lifecycle in the merged finance flow?",
-  );
+  const [actionPending, setActionPending] = useState<string | null>(null);
   const transcriptEndRef = useRef<HTMLDivElement | null>(null);
   const graphRef = useRef<HTMLDivElement | null>(null);
 
@@ -191,32 +380,92 @@ export function MigrationReviewWorkspace() {
   }, []);
 
   useEffect(() => {
+    let cancelled = false;
+
+    const refreshDemo = async () => {
+      try {
+        const data = await loadDemoRun();
+        if (!cancelled) {
+          setDemoState({ data, error: null, loading: false });
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setDemoState({
+            data: null,
+            error: error instanceof Error ? error.message : "Could not load demo run.",
+            loading: false,
+          });
+        }
+      }
+    };
+
+    void refreshDemo();
+    const timer = window.setInterval(() => void refreshDemo(), 4000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, []);
+
+  useEffect(() => {
     transcriptEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [messages]);
 
+  const run = demoState.data?.run ?? null;
+  const result = demoState.data?.result ?? null;
+  const graph = demoState.data?.graph ?? null;
+  const events = demoState.data?.events ?? [];
+  const checkpoints = useMemo(() => deriveCheckpoints(run), [run]);
+  const graphPhase = useMemo(() => deriveGraphPhase(run?.status), [run?.status]);
+  const progressLabel = useMemo(() => deriveProgressLabel(run?.status), [run?.status]);
+  const activity = useMemo(() => buildActivity(events), [events]);
+  const labels = useMemo(() => extractFieldLabels(graph), [graph]);
+  const graphScore = useMemo(() => {
+    const overall = result?.confidence?.overall;
+    if (typeof overall === "number") {
+      return Math.round(overall * 100);
+    }
+    if (run?.status === "migration_ready" || run?.status === "migration_completed") return 95;
+    if (run?.status === "awaiting_mapping_review") return 87;
+    if (run?.status === "awaiting_reasoning_review") return 74;
+    if (run?.status === "awaiting_crawl_review") return 62;
+    return 68;
+  }, [result?.confidence?.overall, run?.status]);
+  const focusQuestion = result?.questions?.[0]?.prompt ?? DEFAULT_QUESTION;
+  const backendLabel = useMemo(() => {
+    if (probeState.loading && !probeState.data) return "Connecting";
+    if (probeState.error) return "Backend offline";
+    if (probeState.data?.ok) return "Backend live";
+    return "Pending";
+  }, [probeState.data, probeState.error, probeState.loading]);
+
+  const sourceProfile = run?.metadata?.crawl_artifacts?.source_profile;
+  const targetProfile = run?.metadata?.crawl_artifacts?.target_profile;
+  const sourceTables = sourceProfile?.tables ?? [];
+  const targetTables = targetProfile?.tables ?? [];
+  const targetWarnings = targetProfile?.warnings ?? [];
+  const sourceSchemas = sourceProfile?.schemas?.length ?? 0;
+  const targetSchemas = targetProfile?.schemas?.length ?? 0;
+  const structureCheckpoint = checkpoints[0];
+  const clarifyCheckpoint = checkpoints[1];
+  const mappingCheckpoint = checkpoints[2];
+
   useEffect(() => {
-    const graph = graphRef.current;
-    if (!graph) {
+    const graphStage = graphRef.current;
+    if (!graphStage) {
       return;
     }
 
-    const nodes = graph.querySelectorAll(".graph-node");
-    const links = graph.querySelectorAll(".graph-link");
-    const highlight = graph.querySelector(".graph-highlight");
+    const nodes = graphStage.querySelectorAll(".graph-node");
+    const links = graphStage.querySelectorAll(".graph-link");
+    const highlight = graphStage.querySelector(".graph-highlight");
 
     const timeline = gsap.timeline();
     timeline
       .fromTo(
         nodes,
         { scale: 0.84, opacity: 0.3, y: 14 },
-        {
-          scale: 1,
-          opacity: 1,
-          y: 0,
-          duration: 0.65,
-          stagger: 0.08,
-          ease: "power2.out",
-        },
+        { scale: 1, opacity: 1, y: 0, duration: 0.65, stagger: 0.08, ease: "power2.out" },
       )
       .fromTo(
         links,
@@ -239,94 +488,68 @@ export function MigrationReviewWorkspace() {
     return () => {
       timeline.kill();
     };
-  }, [graphPhase]);
+  }, [graphPhase, labels.sourceField, labels.recommendedTarget, labels.semanticConcept]);
 
-  const backendLabel = useMemo(() => {
-    if (probeState.loading && !probeState.data) return "Connecting";
-    if (probeState.error) return "Backend offline";
-    if (probeState.data?.ok) return "Backend live";
-    return "Pending";
-  }, [probeState.data, probeState.error, probeState.loading]);
+  useEffect(() => {
+    if (!run) {
+      return;
+    }
+    setMessages((current) => {
+      const intro = {
+        id: "m-run",
+        role: "assistant" as const,
+        content: `Active run ${run.id.slice(0, 8)} is in ${run.status.replaceAll("_", " ")}. I will explain evidence while the operator controls the checkpoints.`,
+      };
+      return [intro, ...current.filter((message) => message.id !== "m-run")];
+    });
+  }, [run?.id, run?.status]);
 
-  const progressLabel = useMemo(() => {
-    if (graphPhase === "crawl") return "Reading source structure";
-    if (graphPhase === "shape") return "Suggestion assembled";
-    if (graphPhase === "reason") return "Evidence re-ranked";
-    if (graphPhase === "question") return "Waiting on human answer";
-    return "Mapping ready for package";
-  }, [graphPhase]);
-
-  const structureCheckpoint = checkpoints.find((checkpoint) => checkpoint.id === "structure");
-  const clarifyCheckpoint = checkpoints.find((checkpoint) => checkpoint.id === "clarify");
-  const mappingCheckpoint = checkpoints.find((checkpoint) => checkpoint.id === "mapping");
-
-  const evidenceItems = useMemo(
-    () => [
-      "The source field clusters with customer profile attributes instead of account-ledger transitions.",
-      "Observed value semantics match active, paused, and churned customer states more closely than account-state transitions.",
-    ],
-    [],
-  );
-
-  const candidateMappings = useMemo(
-    () => [
-      {
-        id: "primary",
-        title: RECOMMENDED_TARGET,
-        score: "91%",
-        tone: "recommended",
-        note: "Best semantic fit for the current evidence set. This is the AI suggestion you can approve.",
-      },
-      {
-        id: "secondary",
-        title: ALTERNATIVE_TARGET,
-        score: "63%",
-        tone: "alternative",
-        note: "Still plausible, but the evidence points more toward customer standing than lifecycle state.",
-      },
-    ],
-    [],
-  );
-
-  function pushActivity(text: string) {
-    setActivity((current) => [{ id: createId("activity"), text }, ...current].slice(0, 6));
+  async function refreshDemoState() {
+    const data = await loadDemoRun();
+    setDemoState({ data, error: null, loading: false });
   }
 
-  function setCheckpointState(id: string, nextState: CheckpointState) {
-    setCheckpoints((current) =>
-      current.map((checkpoint) =>
-        checkpoint.id === id ? { ...checkpoint, state: nextState } : checkpoint,
-      ),
-    );
+  async function submitReview(reviewType: "crawl" | "reasoning" | "mappings", decision: ReviewDecision, notes: string) {
+    if (!run) {
+      return;
+    }
+
+    setActionPending(reviewType);
+    try {
+      const response = await fetch(`/api/backend/runs/${run.id}/reviews/${reviewType}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ decision, notes }),
+      });
+      if (!response.ok) {
+        const payload = (await response.json()) as { detail?: string };
+        throw new Error(payload.detail ?? `Review submission failed with status ${response.status}.`);
+      }
+      await refreshDemoState();
+    } finally {
+      setActionPending(null);
+    }
   }
 
-  function applyAction(action: string) {
-    if (action === "approve_mapping") {
-      setCheckpointState("mapping", "approved");
-      setGraphPhase("mapping");
-      setGraphScore(94);
-      pushActivity("Final mapping checkpoint approved and the recommended target locked into the graph.");
+  async function triggerMigration() {
+    if (!run) {
       return;
     }
-    if (action === "reject_mapping") {
-      setCheckpointState("mapping", "rejected");
-      setGraphScore(58);
-      pushActivity("Final mapping checkpoint rejected; the alternative path remains visible.");
-      return;
-    }
-    if (action === "draft_reviewer_note") {
-      pushActivity("Codex drafted a reviewer note summarizing the current evidence.");
-      return;
-    }
-    if (action === "rerun_reasoning") {
-      setGraphPhase("reason");
-      setGraphScore((score) => Math.min(score + 6, 88));
-      pushActivity("Codex reran semantic reasoning and refreshed the candidate ranking.");
-      return;
-    }
-    if (action === "prepare_package") {
-      setGraphPhase("mapping");
-      pushActivity("Codex prepared the package summary for downstream migration planning.");
+
+    setActionPending("migrate");
+    try {
+      const response = await fetch(`/api/backend/runs/${run.id}/migrate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ notes: "Operator triggered demo migration from the review workspace." }),
+      });
+      if (!response.ok) {
+        const payload = (await response.json()) as { detail?: string };
+        throw new Error(payload.detail ?? `Migration trigger failed with status ${response.status}.`);
+      }
+      await refreshDemoState();
+    } finally {
+      setActionPending(null);
     }
   }
 
@@ -339,11 +562,7 @@ export function MigrationReviewWorkspace() {
     const userMessage: Message = { id: createId("user"), role: "user", content: trimmed };
     const assistantId = createId("assistant");
 
-    setMessages((current) => [
-      ...current,
-      userMessage,
-      { id: assistantId, role: "assistant", content: "", pending: true },
-    ]);
+    setMessages((current) => [...current, userMessage, { id: assistantId, role: "assistant", content: "", pending: true }]);
     setComposer("");
     setIsStreaming(true);
 
@@ -357,18 +576,13 @@ export function MigrationReviewWorkspace() {
             content: message.content,
           })),
           action_context: {
-            project_id: "oracle-supabase-demo",
-            run_id: "run-demo-001",
-            case_id: "case-customer-meaning",
-            selected_mapping_id: "status_cd->customer_status",
+            project_id: run?.project_id ?? "oracle-supabase-demo",
+            run_id: run?.id ?? "run-demo-001",
             requested_action: requestedAction ?? null,
             available_actions: [
               "explain_mapping",
               "compare_alternatives",
               "draft_reviewer_note",
-              "approve_mapping",
-              "reject_mapping",
-              "rerun_reasoning",
               "prepare_package",
             ],
             ui_state: {
@@ -376,6 +590,7 @@ export function MigrationReviewWorkspace() {
               graphScore,
               checkpoints,
               focusQuestion,
+              selectionReason: demoState.data?.selectionReason ?? null,
             },
           },
         }),
@@ -401,8 +616,7 @@ export function MigrationReviewWorkspace() {
 
         for (const eventChunk of events) {
           const lines = eventChunk.split(/\r?\n/);
-          const eventType =
-            lines.find((line) => line.startsWith("event:"))?.slice(6).trim() ?? "message";
+          const eventType = lines.find((line) => line.startsWith("event:"))?.slice(6).trim() ?? "message";
           const payloadText = lines
             .filter((line) => line.startsWith("data:"))
             .map((line) => line.slice(5).trimStart())
@@ -424,16 +638,10 @@ export function MigrationReviewWorkspace() {
             if (delta) {
               setMessages((current) =>
                 current.map((message) =>
-                  message.id === assistantId
-                    ? { ...message, content: `${message.content}${delta}` }
-                    : message,
+                  message.id === assistantId ? { ...message, content: `${message.content}${delta}` } : message,
                 ),
               );
             }
-          }
-
-          if (eventType === "tool_action" && typeof parsed.action === "string") {
-            applyAction(parsed.action);
           }
         }
       }
@@ -451,81 +659,44 @@ export function MigrationReviewWorkspace() {
             : message,
         ),
       );
-      pushActivity("Codex stream failed and the case remains interactive.");
     } finally {
       setMessages((current) =>
-        current.map((message) =>
-          message.id === assistantId ? { ...message, pending: false } : message,
-        ),
+        current.map((message) => (message.id === assistantId ? { ...message, pending: false } : message)),
       );
       setIsStreaming(false);
     }
-  }
-
-  function handleStructureDecision(approve: boolean) {
-    setCheckpointState("structure", approve ? "approved" : "needs_input");
-    setCheckpointState("clarify", "needs_input");
-    setGraphPhase(approve ? "question" : "crawl");
-    setGraphScore(approve ? 74 : 46);
-    pushActivity(
-      approve
-        ? "Human approved the structure checkpoint and unlocked the ambiguity question."
-        : "Human requested a structure rescan before accepting the suggestion.",
-    );
-    void sendPrompt(
-      approve
-        ? "The operator approved the discovered structure. Ask the next ambiguity question briefly."
-        : "The operator requested another structure pass. Explain what should be rechecked in the source and target structures.",
-    );
-  }
-
-  function answerClarification(choice: string) {
-    setCheckpointState("clarify", "approved");
-    setCheckpointState("mapping", "needs_input");
-    setGraphPhase("reason");
-    setGraphScore(choice.includes("customer-level") ? 89 : 67);
-    setFocusQuestion(`Operator answer captured: ${choice}`);
-    pushActivity(`Human answered the ambiguity checkpoint: ${choice}`);
-    void sendPrompt(
-      `The operator answered the ambiguity checkpoint with: ${choice}. Refresh the recommendation and keep the explanation short.`,
-    );
-  }
-
-  function handleMappingDecision(action: "approve" | "reject" | "escalate") {
-    if (action === "approve") {
-      setCheckpointState("mapping", "approved");
-      setGraphPhase("mapping");
-      setGraphScore(95);
-      pushActivity("Human approved the AI suggestion and locked the primary mapping.");
-      void sendPrompt(
-        "The operator approved the final mapping recommendation. Summarize what is now approved and ready.",
-        "approve_mapping",
-      );
-      return;
-    }
-
-    if (action === "reject") {
-      setCheckpointState("mapping", "rejected");
-      setGraphScore(57);
-      pushActivity("Human rejected the AI suggestion and kept the case open.");
-      void sendPrompt(
-        "The operator rejected the final mapping recommendation. Explain the safest alternative in one short paragraph.",
-        "reject_mapping",
-      );
-      return;
-    }
-
-    setCheckpointState("mapping", "escalated");
-    pushActivity("Human escalated the AI suggestion for deeper review.");
-    void sendPrompt(
-      "The operator escalated the mapping. Draft a short escalation brief with unresolved semantic risk.",
-    );
   }
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     void sendPrompt(composer);
   }
+
+  const evidenceItems = [
+    `Source intake: ${sourceTables.length} table(s) across ${sourceSchemas} schema(s).`,
+    `Target database: ${targetTables.length} table(s) across ${targetSchemas} schema(s).`,
+    result?.summary || "Codex reasoning summary will appear here once the reasoning checkpoint has completed.",
+  ];
+
+  const candidateMappings = [
+    {
+      id: "primary",
+      title: labels.recommendedTarget,
+      score: `${graphScore}%`,
+      tone: "recommended",
+      note: "Current primary recommendation based on the latest backend state.",
+    },
+    {
+      id: "secondary",
+      title: labels.alternativeTarget,
+      score: `${Math.max(graphScore - 23, 41)}%`,
+      tone: "alternative",
+      note: "Visible fallback so the operator can redirect the mapping if needed.",
+    },
+  ];
+
+  const migrateVisible = run?.status === "migration_ready" || run?.status === "migration_completed";
+  const migrationResult = [...events].reverse().find((event) => event.type === "migration_completed");
 
   return (
     <main className="orchestrator-page">
@@ -535,8 +706,8 @@ export function MigrationReviewWorkspace() {
             <span className="eyebrow">Suggestion-First Review</span>
             <h1>The AI suggestion comes first. The human approves it through explicit semantic checkpoints.</h1>
             <p className="subhead">
-              Codex proposes a mapping, shows compact evidence, visualizes the competing targets in the context graph, and then
-              asks for human touchpoints in the order the demo needs.
+              This workspace is now bound to a real backend run. The operator can approve structure, reasoning, and mapping
+              directly in the UI, then trigger the mock migration step for the demo.
             </p>
           </div>
           <div className="status-stack">
@@ -544,10 +715,11 @@ export function MigrationReviewWorkspace() {
               <div className="status-kicker">Current state</div>
               <strong>{progressLabel}</strong>
               <span>Backend: {backendLabel}</span>
+              <span>Run: {run ? `${run.id.slice(0, 8)} · ${run.status}` : "Waiting for demo run"}</span>
             </div>
             <div className="status-chips">
-              <span className="status-chip">Source field live</span>
-              <span className="status-chip">Two target candidates</span>
+              <span className="status-chip">{sourceTables.length > 0 ? "Source package loaded" : "Source pending"}</span>
+              <span className="status-chip">{targetTables.length > 0 ? "Target database read" : "Target pending"}</span>
               <span className="status-chip accent">Graph score {graphScore}%</span>
             </div>
           </div>
@@ -559,34 +731,65 @@ export function MigrationReviewWorkspace() {
               <div className="panel-head">
                 <div>
                   <span className="section-label">AI Suggested Mapping</span>
-                  <h2>{SOURCE_FIELD} → {RECOMMENDED_TARGET}</h2>
+                  <h2>
+                    {labels.sourceField} → {labels.recommendedTarget}
+                  </h2>
                 </div>
-                <span className="stream-pill active-soft">{mappingCheckpoint ? statusLabel(mappingCheckpoint.state) : "In review"}</span>
+                <span className="stream-pill active-soft">{statusLabel(mappingCheckpoint.state)}</span>
               </div>
 
               <div className="suggestion-summary">
                 <div className="summary-core">
                   <div className="mapping-pill recommended">Recommended target</div>
-                  <strong>{SEMANTIC_CONCEPT}</strong>
+                  <strong>{labels.semanticConcept}</strong>
                   <p>
-                    Codex believes this source field most likely describes a customer-level standing concept, not an account
-                    lifecycle transition.
+                    {result?.summary ??
+                      "Codex will attach a reasoning summary here once the backend run passes the structure checkpoint."}
                   </p>
                 </div>
                 <div className="confidence-card">
                   <span>Confidence</span>
-                  <strong>91%</strong>
-                  <p>Low structural risk, medium semantic ambiguity until the human answers the checkpoint question.</p>
+                  <strong>{graphScore}%</strong>
+                  <p>{demoState.data?.selectionReason ?? "Reviewable run selection is pending."}</p>
                 </div>
               </div>
 
               <div className="evidence-list">
                 {evidenceItems.map((item) => (
                   <article key={item} className="evidence-card">
-                    <span className="evidence-kicker">Brief evidence</span>
+                    <span className="evidence-kicker">Backend evidence</span>
                     <p>{item}</p>
                   </article>
                 ))}
+              </div>
+            </section>
+
+            <section className="candidate-panel">
+              <div className="panel-head">
+                <div>
+                  <span className="section-label">Database Evidence</span>
+                  <h2>Source intake and live target read</h2>
+                </div>
+              </div>
+
+              <div className="database-grid">
+                <article className="database-card">
+                  <span className="section-label">Source side</span>
+                  <strong>{sourceProfile?.database?.name ?? "Oracle source package"}</strong>
+                  <p>{sourceTables.length} table(s), {sourceSchemas} schema(s)</p>
+                  <code>{sourceTables[0]?.schema ?? "core"}.{sourceTables[0]?.name ?? "customers"}</code>
+                </article>
+                <article className="database-card">
+                  <span className="section-label">Target side</span>
+                  <strong>{targetProfile?.database?.name ?? "Supabase target"}</strong>
+                  <p>{targetTables.length} table(s), {targetSchemas} schema(s)</p>
+                  <code>{targetTables[0]?.schema ?? "public"}.{targetTables[0]?.name ?? "customers"}</code>
+                </article>
+                <article className="database-card warning">
+                  <span className="section-label">Target read health</span>
+                  <strong>{targetWarnings.length === 0 ? "No read warnings" : `${targetWarnings.length} warning(s)`}</strong>
+                  <p>{targetWarnings[0]?.message ?? "Sample rows and structural metadata were captured successfully."}</p>
+                </article>
               </div>
             </section>
 
@@ -608,7 +811,7 @@ export function MigrationReviewWorkspace() {
                     <h3>{candidate.title}</h3>
                     <p>{candidate.note}</p>
                     <div className="candidate-inline-map">
-                      <span>{SOURCE_FIELD}</span>
+                      <span>{labels.sourceField}</span>
                       <i />
                       <span>{candidate.title}</span>
                     </div>
@@ -621,7 +824,7 @@ export function MigrationReviewWorkspace() {
               <div className="panel-head">
                 <div>
                   <span className="section-label">Context Graph</span>
-                  <h2>Source field, semantic concept, and two target mappings</h2>
+                  <h2>Source field, semantic concept, and target path</h2>
                 </div>
                 <span className="mini-pill">{progressLabel}</span>
               </div>
@@ -634,30 +837,30 @@ export function MigrationReviewWorkspace() {
                 <div className="graph-link link-d" />
 
                 <div className="graph-node oracle node-a">
-                  <strong>{SOURCE_FIELD}</strong>
+                  <strong>{labels.sourceField}</strong>
                   <span>Source field</span>
                 </div>
                 <div className="graph-node oracle node-b">
-                  <strong>oracle.fin_account.status_cd</strong>
-                  <span>Related field family</span>
+                  <strong>{sourceTables[0]?.schema ?? "core"}.{sourceTables[0]?.name ?? "customers"}</strong>
+                  <span>Source structure</span>
                 </div>
                 <div className="graph-node semantic node-c">
-                  <strong>{SEMANTIC_CONCEPT}</strong>
+                  <strong>{labels.semanticConcept}</strong>
                   <span>Suggested ontology concept</span>
                 </div>
                 <div className="graph-node target recommended node-e">
-                  <strong>{RECOMMENDED_TARGET}</strong>
+                  <strong>{labels.recommendedTarget}</strong>
                   <span>Primary target mapping</span>
                 </div>
                 <div className="graph-node target node-f">
-                  <strong>{ALTERNATIVE_TARGET}</strong>
+                  <strong>{labels.alternativeTarget}</strong>
                   <span>Fallback target mapping</span>
                 </div>
               </div>
 
               <div className="graph-caption">
-                The thicker path shows the currently recommended mapping. The secondary path stays visible so the human can judge
-                whether the AI should be approved or redirected.
+                The thick path shows the current recommendation from the backend state. The fallback remains visible so the
+                operator can redirect the mapping if needed.
               </div>
             </section>
           </div>
@@ -672,52 +875,120 @@ export function MigrationReviewWorkspace() {
               </div>
 
               <div className="touchpoint-stack">
-                <article className={`touchpoint ${structureCheckpoint?.state ?? "pending"}`}>
-                  <span className="touchpoint-kicker">{structureCheckpoint?.label}</span>
-                  <strong>{structureCheckpoint?.title}</strong>
-                  <p>{structureCheckpoint?.description}</p>
-                  <span className="touchpoint-state">{structureCheckpoint ? statusLabel(structureCheckpoint.state) : "Queued"}</span>
+                <article className={`touchpoint ${structureCheckpoint.state}`}>
+                  <span className="touchpoint-kicker">{structureCheckpoint.label}</span>
+                  <strong>{structureCheckpoint.title}</strong>
+                  <p>{structureCheckpoint.description}</p>
+                  <span className="touchpoint-state">{statusLabel(structureCheckpoint.state)}</span>
                   <div className="touchpoint-actions">
-                    <button type="button" className="secondary-button" onClick={() => handleStructureDecision(true)} disabled={isStreaming}>
-                      Approve structure
+                    <button
+                      type="button"
+                      className="secondary-button"
+                      onClick={() => void submitReview("crawl", "approve", "Operator approved the discovered structure from the UI.")}
+                      disabled={isStreaming || actionPending !== null || structureCheckpoint.state === "approved" || !run}
+                    >
+                      {actionPending === "crawl" ? "Submitting..." : "Approve structure"}
                     </button>
-                    <button type="button" className="ghost-button" onClick={() => handleStructureDecision(false)} disabled={isStreaming}>
+                    <button
+                      type="button"
+                      className="ghost-button"
+                      onClick={() => void submitReview("crawl", "request_changes", "Operator requested a structure rescan from the UI.")}
+                      disabled={isStreaming || actionPending !== null || !run}
+                    >
                       Request rescan
                     </button>
                   </div>
                 </article>
 
-                <article className={`touchpoint ${clarifyCheckpoint?.state ?? "pending"}`}>
-                  <span className="touchpoint-kicker">{clarifyCheckpoint?.label}</span>
-                  <strong>{clarifyCheckpoint?.title}</strong>
+                <article className={`touchpoint ${clarifyCheckpoint.state}`}>
+                  <span className="touchpoint-kicker">{clarifyCheckpoint.label}</span>
+                  <strong>{clarifyCheckpoint.title}</strong>
                   <p>{focusQuestion}</p>
-                  <span className="touchpoint-state">{clarifyCheckpoint ? statusLabel(clarifyCheckpoint.state) : "Queued"}</span>
+                  <span className="touchpoint-state">{statusLabel(clarifyCheckpoint.state)}</span>
                   <div className="choice-list">
-                    {CLARIFICATION_CHOICES.map((choice) => (
-                      <button key={choice} type="button" className="choice-chip" onClick={() => answerClarification(choice)} disabled={isStreaming}>
+                    {CLARIFICATION_CHOICES.map((choice, index) => (
+                      <button
+                        key={choice}
+                        type="button"
+                        className="choice-chip"
+                        onClick={() =>
+                          void submitReview(
+                            "reasoning",
+                            index === 2 ? "request_changes" : "approve",
+                            choice,
+                          )
+                        }
+                        disabled={isStreaming || actionPending !== null || !run}
+                      >
                         {choice}
                       </button>
                     ))}
                   </div>
                 </article>
 
-                <article className={`touchpoint final ${mappingCheckpoint?.state ?? "pending"}`}>
-                  <span className="touchpoint-kicker">{mappingCheckpoint?.label}</span>
-                  <strong>{mappingCheckpoint?.title}</strong>
-                  <p>{mappingCheckpoint?.description}</p>
-                  <span className="touchpoint-state">{mappingCheckpoint ? statusLabel(mappingCheckpoint.state) : "Queued"}</span>
+                <article className={`touchpoint final ${mappingCheckpoint.state}`}>
+                  <span className="touchpoint-kicker">{mappingCheckpoint.label}</span>
+                  <strong>{mappingCheckpoint.title}</strong>
+                  <p>{mappingCheckpoint.description}</p>
+                  <span className="touchpoint-state">{statusLabel(mappingCheckpoint.state)}</span>
                   <div className="touchpoint-actions">
-                    <button type="button" className="primary-button" onClick={() => handleMappingDecision("approve")} disabled={isStreaming}>
-                      Approve suggestion
+                    <button
+                      type="button"
+                      className="primary-button"
+                      onClick={() => void submitReview("mappings", "approve", "Operator approved the mapping package from the UI.")}
+                      disabled={isStreaming || actionPending !== null || mappingCheckpoint.state === "approved" || !run}
+                    >
+                      {actionPending === "mappings" ? "Submitting..." : "Approve suggestion"}
                     </button>
-                    <button type="button" className="ghost-button" onClick={() => handleMappingDecision("reject")} disabled={isStreaming}>
+                    <button
+                      type="button"
+                      className="ghost-button"
+                      onClick={() => void submitReview("mappings", "reject", "Operator rejected the mapping package from the UI.")}
+                      disabled={isStreaming || actionPending !== null || !run}
+                    >
                       Reject
                     </button>
-                    <button type="button" className="ghost-button" onClick={() => handleMappingDecision("escalate")} disabled={isStreaming}>
+                    <button
+                      type="button"
+                      className="ghost-button"
+                      onClick={() => void submitReview("mappings", "request_changes", "Operator escalated the mapping package from the UI.")}
+                      disabled={isStreaming || actionPending !== null || !run}
+                    >
                       Escalate
                     </button>
                   </div>
                 </article>
+              </div>
+            </section>
+
+            <section className="migration-panel">
+              <div className="panel-head">
+                <div>
+                  <span className="section-label">Migration Gate</span>
+                  <h2>Operator-triggered handoff</h2>
+                </div>
+              </div>
+
+              <div className="migration-card">
+                <strong>{migrateVisible ? "Ready for demo migration" : "Blocked until approvals complete"}</strong>
+                <p>
+                  The backend keeps migration blocked until all three reviews are approved. The current implementation returns a
+                  mock migration result for the demo.
+                </p>
+                <button
+                  type="button"
+                  className="primary-button"
+                  onClick={() => void triggerMigration()}
+                  disabled={isStreaming || actionPending !== null || run?.status !== "migration_ready"}
+                >
+                  {actionPending === "migrate" ? "Triggering..." : "Trigger mock migration"}
+                </button>
+                {migrationResult ? (
+                  <div className="migration-result">
+                    <span className="section-label">Latest result</span>
+                    <p>{JSON.stringify(migrationResult.payload ?? {}, null, 2)}</p>
+                  </div>
+                ) : null}
               </div>
             </section>
 
@@ -777,11 +1048,15 @@ export function MigrationReviewWorkspace() {
               </div>
 
               <div className="activity-list">
-                {activity.map((item) => (
-                  <article key={item.id} className="activity-row">
-                    {item.text}
-                  </article>
-                ))}
+                {activity.length > 0 ? (
+                  activity.map((item) => (
+                    <article key={item.id} className="activity-row">
+                      {item.text}
+                    </article>
+                  ))
+                ) : (
+                  <article className="activity-row">{demoState.error ?? "Waiting for backend activity."}</article>
+                )}
               </div>
             </section>
           </aside>

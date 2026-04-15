@@ -72,6 +72,22 @@ def _default_data_dir() -> Path:
     return Path(__file__).resolve().parent / ".data"
 
 
+def _load_repo_env() -> None:
+    env_path = ROOT_DIR / ".env"
+    if not env_path.exists():
+        return
+
+    for raw_line in env_path.read_text(encoding="utf-8").splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        key = key.strip()
+        if not key or key in os.environ:
+            continue
+        os.environ[key] = value.strip().strip("'").strip('"')
+
+
 app = FastAPI(title="Semantic Translation API")
 app.state.event_hub = EventHub()
 app.state.store = None
@@ -94,6 +110,7 @@ def startup() -> None:
     if FileBackedStore is None:
         raise RuntimeError("FileBackedStore is unavailable; app.store failed to import.")
 
+    _load_repo_env()
     app.state.store = FileBackedStore(_default_data_dir())
 
 

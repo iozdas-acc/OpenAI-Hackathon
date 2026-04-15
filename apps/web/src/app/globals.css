@@ -133,6 +133,7 @@ textarea {
 .candidate-panel,
 .graph-panel,
 .touchpoint-panel,
+.migration-panel,
 .conversation-panel,
 .activity-panel {
   border: 1px solid var(--line);
@@ -142,6 +143,10 @@ textarea {
 
 .status-card {
   padding: 16px 18px;
+}
+
+.migration-panel {
+  overflow: hidden;
 }
 
 .status-kicker,
@@ -167,6 +172,80 @@ textarea {
   margin-top: 6px;
   color: var(--muted);
   font-size: 13px;
+}
+
+.database-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  padding: 0 20px 20px;
+}
+
+.database-card,
+.migration-card {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: rgba(13, 24, 39, 0.9);
+}
+
+.database-card {
+  padding: 16px;
+}
+
+.database-card strong,
+.migration-card strong {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 18px;
+  letter-spacing: -0.02em;
+}
+
+.database-card p,
+.migration-card p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.database-card code {
+  display: inline-flex;
+  margin-top: 12px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  background: rgba(8, 15, 27, 0.85);
+  color: var(--accent);
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.database-card.warning {
+  border-color: rgba(243, 199, 114, 0.22);
+}
+
+.migration-card {
+  margin: 0 20px 20px;
+  padding: 18px;
+}
+
+.migration-card .primary-button {
+  margin-top: 14px;
+}
+
+.migration-result {
+  margin-top: 14px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: rgba(8, 15, 27, 0.82);
+}
+
+.migration-result p {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: var(--font-mono);
+  font-size: 12px;
 }
 
 .status-chips {
