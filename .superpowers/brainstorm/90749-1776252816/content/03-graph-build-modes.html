@@ -1,0 +1,247 @@
+<style>
+  .stack {
+    display: grid;
+    gap: 1.25rem;
+  }
+
+  .mode {
+    border-radius: 28px;
+    overflow: hidden;
+    border: 1px solid rgba(255,255,255,0.14);
+    background:
+      linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.015)),
+      linear-gradient(135deg, #080b14, #09101b 50%, #06131e);
+  }
+
+  .visual {
+    padding: 1rem;
+    min-height: 286px;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+  }
+
+  .shell {
+    min-height: 255px;
+    border-radius: 24px;
+    padding: 0.9rem;
+    border: 1px solid rgba(255,255,255,0.08);
+    background:
+      radial-gradient(circle at top left, rgba(166,102,255,0.15), transparent 32%),
+      radial-gradient(circle at top right, rgba(9,200,255,0.15), transparent 30%),
+      rgba(8,10,18,0.9);
+  }
+
+  .tag {
+    display: inline-flex;
+    padding: 0.27rem 0.56rem;
+    border-radius: 999px;
+    border: 1px solid rgba(255,255,255,0.13);
+    font-size: 0.65rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.8);
+  }
+
+  .graph {
+    position: relative;
+    margin-top: 0.95rem;
+    min-height: 195px;
+    border-radius: 22px;
+    border: 1px solid rgba(255,255,255,0.08);
+    background:
+      radial-gradient(circle at center, rgba(255,255,255,0.06), transparent 40%),
+      rgba(255,255,255,0.03);
+    overflow: hidden;
+  }
+
+  .node {
+    position: absolute;
+    width: 11px;
+    height: 11px;
+    border-radius: 999px;
+  }
+
+  .node.a { background: #b38aff; box-shadow: 0 0 0 8px rgba(179,138,255,0.08); }
+  .node.b { background: #6fe5ff; box-shadow: 0 0 0 8px rgba(111,229,255,0.08); }
+  .node.c { background: #c8ff77; box-shadow: 0 0 0 8px rgba(200,255,119,0.08); }
+
+  .link {
+    position: absolute;
+    height: 1px;
+    background: linear-gradient(90deg, rgba(111,229,255,0.08), rgba(179,138,255,0.92), rgba(200,255,119,0.1));
+    transform-origin: left center;
+  }
+
+  .bubble {
+    position: absolute;
+    border-radius: 999px;
+    border: 1px solid rgba(255,255,255,0.08);
+    background: rgba(255,255,255,0.03);
+    color: rgba(255,255,255,0.72);
+    font-size: 0.68rem;
+    padding: 0.24rem 0.5rem;
+  }
+
+  .ring {
+    position: absolute;
+    border-radius: 999px;
+    border: 1px dashed rgba(200,255,119,0.22);
+  }
+
+  .phase-strip {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.52rem;
+    margin-top: 0.8rem;
+  }
+
+  .phase {
+    border-radius: 14px;
+    padding: 0.5rem;
+    font-size: 0.72rem;
+    color: rgba(255,255,255,0.74);
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.08);
+    min-height: 66px;
+  }
+
+  .body {
+    padding: 1rem;
+  }
+
+  .body h3 {
+    margin: 0;
+    font-size: 1.08rem;
+  }
+
+  .chips {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    margin: 0.72rem 0 0.8rem;
+  }
+
+  .chips span {
+    padding: 0.27rem 0.55rem;
+    border-radius: 999px;
+    font-size: 0.71rem;
+    color: rgba(255,255,255,0.7);
+    border: 1px solid rgba(255,255,255,0.1);
+  }
+
+  .body p {
+    margin: 0;
+    color: rgba(255,255,255,0.76);
+    line-height: 1.55;
+  }
+</style>
+
+<h2>Loop 3: Graph Build Modes</h2>
+<p class="subtitle">
+  Same winning layout. This round decides how the semantic graph should visually communicate “the AI is building a shared database understanding right now.”
+</p>
+
+<div class="cards stack">
+  <div class="card mode" data-choice="pulse-build" onclick="toggleSelect(this)">
+    <div class="visual">
+      <div class="shell">
+        <span class="tag">Mode 1</span>
+        <div class="graph">
+          <div class="ring" style="left:39%;top:27%;width:74px;height:74px;"></div>
+          <div class="ring" style="left:58%;top:46%;width:62px;height:62px;"></div>
+          <div class="link" style="left:12%;top:27%;width:74%;transform:rotate(14deg)"></div>
+          <div class="link" style="left:22%;top:68%;width:54%;transform:rotate(-18deg)"></div>
+          <div class="node a" style="left:14%;top:23%"></div>
+          <div class="node b" style="left:26%;top:69%"></div>
+          <div class="node c" style="left:46%;top:38%"></div>
+          <div class="node a" style="left:67%;top:55%"></div>
+          <div class="node b" style="left:80%;top:24%"></div>
+          <div class="bubble" style="left:10%;top:8%;">new entity link</div>
+          <div class="bubble" style="left:56%;top:78%;">confidence +0.08</div>
+        </div>
+        <div class="phase-strip">
+          <div class="phase">Ingest field names</div>
+          <div class="phase">Infer equivalence</div>
+          <div class="phase">Expand graph</div>
+          <div class="phase">Propose concept</div>
+        </div>
+      </div>
+    </div>
+    <div class="body">
+      <h3>1. Pulse Build</h3>
+      <div class="chips">
+        <span>Best for live feel</span>
+        <span>Readable</span>
+        <span>Easy animation path</span>
+      </div>
+      <p>Pulses and rings make new semantic links feel like events entering the graph. This best supports a future animated implementation without overcomplicating the static mock.</p>
+    </div>
+  </div>
+
+  <div class="card mode" data-choice="before-after-diff" onclick="toggleSelect(this)">
+    <div class="visual">
+      <div class="shell">
+        <span class="tag">Mode 2</span>
+        <div class="phase-strip" style="grid-template-columns:1fr 1fr;">
+          <div class="phase">Before: sparse graph, low certainty</div>
+          <div class="phase">After: dense graph, resolved concept</div>
+        </div>
+        <div class="graph" style="margin-top:0.7rem;">
+          <div style="position:absolute;left:0;top:0;bottom:0;width:50%;border-right:1px solid rgba(255,255,255,0.08);"></div>
+          <div class="node a" style="left:14%;top:26%"></div>
+          <div class="node b" style="left:28%;top:64%"></div>
+          <div class="node c" style="left:62%;top:34%"></div>
+          <div class="node a" style="left:74%;top:58%"></div>
+          <div class="node b" style="left:88%;top:26%"></div>
+          <div class="link" style="left:58%;top:33%;width:28%;transform:rotate(16deg)"></div>
+          <div class="link" style="left:61%;top:58%;width:19%;transform:rotate(-12deg)"></div>
+          <div class="bubble" style="left:7%;top:10%;">0.71 confidence</div>
+          <div class="bubble" style="left:58%;top:10%;">0.93 confidence</div>
+        </div>
+      </div>
+    </div>
+    <div class="body">
+      <h3>2. Before / After Diff</h3>
+      <div class="chips">
+        <span>Most explicit</span>
+        <span>Less alive</span>
+        <span>Good judge shorthand</span>
+      </div>
+      <p>This makes the improvement obvious, but it feels more analytical than dynamic. Better for a report than for a vivid product demo.</p>
+    </div>
+  </div>
+
+  <div class="card mode" data-choice="layered-wave" onclick="toggleSelect(this)">
+    <div class="visual">
+      <div class="shell">
+        <span class="tag">Mode 3</span>
+        <div class="graph">
+          <div style="position:absolute;inset:18px;border-radius:20px;background:radial-gradient(circle at center, rgba(255,255,255,0.05), transparent 50%);"></div>
+          <div class="link" style="left:18%;top:30%;width:22%;transform:rotate(4deg)"></div>
+          <div class="link" style="left:37%;top:45%;width:22%;transform:rotate(18deg)"></div>
+          <div class="link" style="left:55%;top:59%;width:19%;transform:rotate(-22deg)"></div>
+          <div class="node a" style="left:17%;top:27%"></div>
+          <div class="node b" style="left:39%;top:45%"></div>
+          <div class="node c" style="left:58%;top:57%"></div>
+          <div class="node a" style="left:75%;top:34%"></div>
+          <div class="bubble" style="left:33%;top:14%;">schema layer</div>
+          <div class="bubble" style="left:50%;top:75%;">ontology layer</div>
+        </div>
+        <div class="phase-strip">
+          <div class="phase">Schema</div>
+          <div class="phase">Semantics</div>
+          <div class="phase">Graph</div>
+          <div class="phase">Ontology</div>
+        </div>
+      </div>
+    </div>
+    <div class="body">
+      <h3>3. Layered Wave</h3>
+      <div class="chips">
+        <span>Most conceptual</span>
+        <span>More abstract</span>
+        <span>Harder to explain fast</span>
+      </div>
+      <p>This is visually elegant, but it pushes the demo toward abstraction. It risks making the semantic mapping feel more magical than accountable.</p>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,149 @@
+{
+  "run_id": "2026-04-15T13-15-19Z",
+  "started_at": "2026-04-15T13:15:19Z",
+  "completed_at": "2026-04-15T13:15:20Z",
+  "interval_minutes": 15,
+  "included_files": [
+    "apps/api/README.md",
+    "apps/api/app/__init__.py",
+    "apps/api/app/api_models.py",
+    "apps/api/app/codex_chat.py",
+    "apps/api/app/models.py",
+    "apps/api/app/runtime.py",
+    "apps/api/app/store.py",
+    "apps/api/main.py",
+    "apps/api/requirements.txt",
+    "services/context_graph_builder.py",
+    "services/crawlers/__init__.py",
+    "services/crawlers/oracle.py",
+    "services/crawlers/supabase.py",
+    "services/migration/supabase.py",
+    "services/orchestrator/README.md",
+    "services/orchestrator/__init__.py",
+    "services/orchestrator/main.py",
+    "services/orchestrator/requirements.txt",
+    "services/orchestrator/workflow.py"
+  ],
+  "excluded_patterns": [
+    ".data",
+    ".git",
+    ".next",
+    ".venv",
+    "__pycache__",
+    "node_modules"
+  ],
+  "changed_files": [],
+  "finding_counts": {
+    "high": 6,
+    "medium": 4,
+    "low": 0
+  },
+  "status": "needs_attention",
+  "file_hashes": {
+    "apps/api/README.md": "e2334178a1d8036bc64f3df1ef7eb605e4645d43fe11dc16bc16676fc6df6cc6",
+    "apps/api/app/__init__.py": "20dd91a49c0e27edfb5c48e8fbf280d27489530be674df9cc2836c4e59de26c3",
+    "apps/api/app/api_models.py": "18d9e8df738d4e3b72c91f7c0436c2f90959ebb0f98d8b5f3c066f8becde07a2",
+    "apps/api/app/codex_chat.py": "f9ee4fc7ae54407fef97edbd15620130eb69fd1f5175c52e6a94fe64558771aa",
+    "apps/api/app/models.py": "44e89cbe6f9992bd8f0a85b3657a74697652f2ccc762e7d2f6650fc988713dd7",
+    "apps/api/app/runtime.py": "ecbd95ed89bb97d0805c1516cdcbcb6141792e05773c464a8ca8a4d1961934ed",
+    "apps/api/app/store.py": "8e8d9bef0c54dfe70101f5003dd9c4f18c02365c921fc3c4f9492a4cb4edf95f",
+    "apps/api/main.py": "61cad83b9a3dd145119893e00e59cfda625ef16780f50ef488704d258745c44e",
+    "apps/api/requirements.txt": "42810f57d3256850f5f9d4d1726a7ec16ed079f27b73fe84ce0d57febacb387a",
+    "services/context_graph_builder.py": "7c0d82ccb65359ade5bf91bc380e140bfbc3fc0492b1453ec878877f0b48bca4",
+    "services/crawlers/__init__.py": "479daa92448900bd7ed1148ed0f43113aa8721017dc1b45a7c3b0499c65d6a81",
+    "services/crawlers/oracle.py": "93ff035b90e130af20c55a826d4520bf157999b55c606a55a6838d17cd254d23",
+    "services/crawlers/supabase.py": "7fafd0dc8ebdd9959163a2cc75f91e823ad9f4a3c213cac29d24b48fe789b34d",
+    "services/migration/supabase.py": "2a5bbbaec99be2b85b0118f0be9f1e2ab6c4600a0e47f5e321a58e029433ad81",
+    "services/orchestrator/README.md": "a126bdab51195c76ed9fa4a100ce142f6609f1fcc1854c9c1d58afd15f65796b",
+    "services/orchestrator/__init__.py": "8efb346246d3902af5ff8b7a804240ee85fce01ba2f7129e08a0fe98536371d1",
+    "services/orchestrator/main.py": "c835c827c1e2613f4033b9730534d0a1b14c11a13646ba38ff868c8fbd3f3076",
+    "services/orchestrator/requirements.txt": "1f7ccea5990aac9bf8358c45f1fbcac918844863b8048558c6811141b031fd8c",
+    "services/orchestrator/workflow.py": "65133e8752a091261ec649f948f94c797b2b115a96018de78bab1cc8aba2fa20"
+  },
+  "findings": [
+    {
+      "id": "live-dict-values-view",
+      "severity": "high",
+      "title": "Run listing uses a live dict view outside the store lock",
+      "path": "apps/api/app/store.py",
+      "detail": "Iterating a dict values view after releasing the lock can raise runtime errors or return inconsistent results when concurrent writes occur."
+    },
+    {
+      "id": "migration-stuck-status",
+      "severity": "high",
+      "title": "Migration failures can leave runs stuck in migrating",
+      "path": "apps/api/main.py",
+      "detail": "The API transitions a run to migrating before verifying the executor import and before guarding the migration call, so failures can strand the run without a terminal status."
+    },
+    {
+      "id": "sample-row-leak",
+      "severity": "high",
+      "title": "Target crawl exports raw sample rows",
+      "path": "services/crawlers/supabase.py",
+      "detail": "Sample rows are copied verbatim into crawl output, which creates a direct path for PII and secret leakage into downstream persistence and review artifacts."
+    },
+    {
+      "id": "mapping-count-dict-bug",
+      "severity": "high",
+      "title": "Migration metrics assume graph nodes are objects instead of dicts",
+      "path": "services/migration/supabase.py",
+      "detail": "When graph nodes are stored as dictionaries, the current mapping count logic reports zero candidates and makes migration telemetry misleading."
+    },
+    {
+      "id": "brittle-openai-parser",
+      "severity": "high",
+      "title": "Orchestrator response parsing assumes a narrow OpenAI payload shape",
+      "path": "services/orchestrator/workflow.py",
+      "detail": "The parser only checks a small set of response fields, so supported API variations or wrapped structured output can fail without a durable fallback path."
+    },
+    {
+      "id": "unsafe-json-loads",
+      "severity": "high",
+      "title": "Structured output parsing does not preserve context on JSON decode failures",
+      "path": "services/orchestrator/workflow.py",
+      "detail": "Malformed or wrapped model output will bubble up as a raw JSON decode failure, which makes recurring contract issues harder to diagnose."
+    },
+    {
+      "id": "missing-backend-tests",
+      "severity": "medium",
+      "title": "Backend review targets are missing automated tests",
+      "path": "apps/api services/orchestrator services/crawlers services/migration",
+      "detail": "No backend-focused test modules were found under the reviewed surfaces, so the Ralph loop can report recurring issues but cannot validate regressions automatically."
+    },
+    {
+      "id": "started-at-reset",
+      "severity": "medium",
+      "title": "Run status transitions wipe started_at for non-running states",
+      "path": "apps/api/app/store.py",
+      "detail": "Completed and failed runs lose their original start timestamp, which breaks duration tracking and weakens backend auditability."
+    },
+    {
+      "id": "unsanitized-upload-filename",
+      "severity": "medium",
+      "title": "Uploaded filenames are written into storage paths without sanitization",
+      "path": "apps/api/app/store.py",
+      "detail": "A crafted filename can escape the intended upload area or create unstable local file paths because the store concatenates the raw filename into the saved path."
+    },
+    {
+      "id": "oracle-arbitrary-path-read",
+      "severity": "medium",
+      "title": "Oracle preview logic trusts arbitrary file metadata paths",
+      "path": "services/crawlers/oracle.py",
+      "detail": "The crawler reads the first line of whatever path is present in file metadata without confining that path to the upload area."
+    }
+  ],
+  "recurring_findings": [
+    "brittle-openai-parser",
+    "live-dict-values-view",
+    "mapping-count-dict-bug",
+    "migration-stuck-status",
+    "missing-backend-tests",
+    "oracle-arbitrary-path-read",
+    "sample-row-leak",
+    "started-at-reset",
+    "unsafe-json-loads",
+    "unsanitized-upload-filename"
+  ],
+  "resolved_findings": [],
+  "new_findings": []
+}

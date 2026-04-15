@@ -10,4 +10,9 @@ if [[ ! -f .venv/bin/activate ]]; then
 fi
 
 source .venv/bin/activate
-uvicorn main:app --reload --port 8000
+
+if [[ -f "$ROOT_DIR/.env" ]]; then
+  uvicorn main:app --reload --port 8000 --env-file "$ROOT_DIR/.env"
+else
+  uvicorn main:app --reload --port 8000
+fi

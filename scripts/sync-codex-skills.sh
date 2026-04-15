@@ -7,19 +7,21 @@ TARGET_DIR="${CODEX_HOME:-$HOME/.codex}/skills"
 
 mkdir -p "$TARGET_DIR"
 
-declare -A seen_names=()
+TMP_SKILL_INDEX="$(mktemp)"
+trap 'rm -f "$TMP_SKILL_INDEX"' EXIT
 
 while IFS= read -r -d '' skill_file; do
   skill_dir="$(dirname "$skill_file")"
   skill_name="$(basename "$skill_dir")"
-  if [[ -n "${seen_names[$skill_name]:-}" ]]; then
+  existing_dir="$(awk -F '\t' -v name="$skill_name" '$1 == name { print $2; exit }' "$TMP_SKILL_INDEX")"
+  if [[ -n "$existing_dir" ]]; then
     echo "error duplicate skill name '$skill_name':"
-    echo "  - ${seen_names[$skill_name]}"
+    echo "  - $existing_dir"
     echo "  - $skill_dir"
     echo "Rename one of the skill folders before syncing."
     exit 1
   fi
-  seen_names["$skill_name"]="$skill_dir"
+  printf '%s\t%s\n' "$skill_name" "$skill_dir" >> "$TMP_SKILL_INDEX"
 done < <(find "$SKILLS_DIR" -name SKILL.md -print0 | sort -z)
 
 link_skill() {

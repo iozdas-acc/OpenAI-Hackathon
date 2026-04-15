@@ -1,0 +1,348 @@
+<style>
+  .hero-grid {
+    display: grid;
+    gap: 1.25rem;
+  }
+
+  .direction-card {
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    border-radius: 28px;
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.02)),
+      rgba(9, 10, 20, 0.94);
+    overflow: hidden;
+    cursor: pointer;
+  }
+
+  .direction-frame {
+    padding: 1rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    background:
+      radial-gradient(circle at top left, rgba(172, 126, 255, 0.25), transparent 30%),
+      radial-gradient(circle at top right, rgba(0, 194, 255, 0.18), transparent 32%),
+      linear-gradient(135deg, rgba(15, 17, 32, 1), rgba(7, 8, 15, 1));
+    min-height: 290px;
+  }
+
+  .mock-shell {
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 22px;
+    background: rgba(4, 6, 14, 0.82);
+    padding: 0.9rem;
+    min-height: 250px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .mock-chip {
+    display: inline-flex;
+    padding: 0.22rem 0.55rem;
+    border-radius: 999px;
+    font-size: 0.66rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: rgba(255, 255, 255, 0.8);
+  }
+
+  .lane {
+    display: grid;
+    gap: 0.55rem;
+    margin-top: 0.9rem;
+  }
+
+  .row-3 {
+    display: grid;
+    grid-template-columns: 1fr 1.2fr 1fr;
+    gap: 0.8rem;
+    align-items: stretch;
+  }
+
+  .panel {
+    border-radius: 18px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.04);
+    padding: 0.8rem;
+    min-height: 138px;
+  }
+
+  .tiny {
+    height: 0.5rem;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.1);
+    margin-top: 0.45rem;
+    overflow: hidden;
+  }
+
+  .tiny::after {
+    content: "";
+    display: block;
+    height: 100%;
+    width: var(--fill, 55%);
+    border-radius: inherit;
+    background: linear-gradient(90deg, #8b5cf6, #00c2ff);
+  }
+
+  .graph-core {
+    position: relative;
+    height: 100%;
+    min-height: 138px;
+    border-radius: 18px;
+    background:
+      radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.08), transparent 38%),
+      rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .node {
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    border-radius: 999px;
+    background: #b8ff7a;
+    box-shadow: 0 0 0 7px rgba(184, 255, 122, 0.09);
+  }
+
+  .node.purple { background: #b995ff; box-shadow: 0 0 0 7px rgba(185, 149, 255, 0.09); }
+  .node.blue { background: #7ce7ff; box-shadow: 0 0 0 7px rgba(124, 231, 255, 0.09); }
+
+  .beam {
+    position: absolute;
+    height: 1px;
+    background: linear-gradient(90deg, rgba(124, 231, 255, 0.1), rgba(185, 149, 255, 0.8), rgba(124, 231, 255, 0.1));
+    transform-origin: left center;
+  }
+
+  .direction-body {
+    padding: 1rem 1rem 1.1rem;
+  }
+
+  .direction-body h3 {
+    margin: 0;
+    font-size: 1.1rem;
+  }
+
+  .meta {
+    display: flex;
+    gap: 0.55rem;
+    flex-wrap: wrap;
+    margin: 0.65rem 0 0.75rem;
+  }
+
+  .meta span {
+    font-size: 0.72rem;
+    color: rgba(255, 255, 255, 0.68);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 999px;
+    padding: 0.28rem 0.55rem;
+  }
+
+  .direction-body p {
+    margin: 0;
+    color: rgba(255, 255, 255, 0.76);
+    line-height: 1.55;
+  }
+
+  .source-title {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: rgba(255, 255, 255, 0.64);
+  }
+
+  .source-field {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin-top: 0.52rem;
+    font-size: 0.78rem;
+    color: rgba(255, 255, 255, 0.82);
+  }
+
+  .ontology-card {
+    margin-top: 0.85rem;
+    border-radius: 16px;
+    background: linear-gradient(135deg, rgba(184, 255, 122, 0.16), rgba(124, 231, 255, 0.12));
+    border: 1px solid rgba(184, 255, 122, 0.28);
+    padding: 0.8rem;
+  }
+
+  .center-label {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    width: 78%;
+    color: rgba(255, 255, 255, 0.82);
+    font-size: 0.78rem;
+    line-height: 1.45;
+  }
+
+  .timeline {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.55rem;
+    margin-top: 0.95rem;
+  }
+
+  .step {
+    border-radius: 15px;
+    padding: 0.7rem;
+    min-height: 82px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    font-size: 0.76rem;
+    color: rgba(255, 255, 255, 0.74);
+  }
+
+  .step strong {
+    display: block;
+    color: white;
+    margin-bottom: 0.35rem;
+    font-size: 0.78rem;
+  }
+</style>
+
+<h2>Golden Path UI Directions</h2>
+<p class="subtitle">
+  These three directions all keep the same Stage 1 story: two company databases enter, the AI proposes the ontology concept, and the graph visibly densifies as semantic alignment is built.
+</p>
+
+<div class="cards hero-grid">
+  <div class="card direction-card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="direction-frame">
+      <div class="mock-shell">
+        <span class="mock-chip">Option A</span>
+        <div class="lane row-3">
+          <div class="panel">
+            <div class="source-title">Source Systems</div>
+            <div class="source-field"><span>ERP_A.customer_type</span><span>varchar</span></div>
+            <div class="tiny" style="--fill: 74%"></div>
+            <div class="source-field"><span>CRM_B.client_segment</span><span>string</span></div>
+            <div class="tiny" style="--fill: 61%"></div>
+          </div>
+          <div class="graph-core">
+            <div class="beam" style="left: 12%; top: 28%; width: 76%; transform: rotate(8deg);"></div>
+            <div class="beam" style="left: 16%; top: 66%; width: 68%; transform: rotate(-12deg);"></div>
+            <div class="node purple" style="left: 18%; top: 22%;"></div>
+            <div class="node blue" style="left: 22%; top: 68%;"></div>
+            <div class="node" style="left: 54%; top: 48%;"></div>
+            <div class="node purple" style="left: 77%; top: 34%;"></div>
+            <div class="node blue" style="left: 72%; top: 74%;"></div>
+            <div class="center-label">
+              AI semantic engine fuses schema language, value patterns, and ontology neighbors into one live graph.
+            </div>
+          </div>
+          <div class="panel">
+            <div class="source-title">Proposed Concept</div>
+            <div class="ontology-card">
+              <strong>Customer Classification</strong>
+              Confidence rising from 0.72 to 0.93 as new graph links resolve ambiguity.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="direction-body">
+      <h3>A. Semantic Conveyor</h3>
+      <div class="meta">
+        <span>Best for judges</span>
+        <span>One glance narrative</span>
+        <span>Strong demo readability</span>
+      </div>
+      <p>
+        A left-to-right story: raw fields in, graph intelligence in the middle, approved concept out. Cleanest explanation path and easiest to upgrade into a real product later.
+      </p>
+    </div>
+  </div>
+
+  <div class="card direction-card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="direction-frame">
+      <div class="mock-shell">
+        <span class="mock-chip">Option B</span>
+        <div class="lane">
+          <div class="row-3">
+            <div class="panel">
+              <div class="source-title">Company A</div>
+              <div class="source-field"><span>customer_tier</span><span>ERP</span></div>
+              <div class="tiny" style="--fill: 69%"></div>
+              <div class="source-field"><span>acct_status</span><span>billing</span></div>
+              <div class="tiny" style="--fill: 48%"></div>
+            </div>
+            <div class="graph-core">
+              <div class="beam" style="left: 4%; top: 30%; width: 42%; transform: rotate(18deg);"></div>
+              <div class="beam" style="left: 53%; top: 70%; width: 40%; transform: rotate(-20deg);"></div>
+              <div class="beam" style="left: 22%; top: 54%; width: 52%; transform: rotate(-3deg);"></div>
+              <div class="node purple" style="left: 12%; top: 28%;"></div>
+              <div class="node" style="left: 39%; top: 58%;"></div>
+              <div class="node blue" style="left: 58%; top: 42%;"></div>
+              <div class="node purple" style="left: 84%; top: 68%;"></div>
+              <div class="center-label">
+                Cross-company mapping graph expands as equivalent entities, attributes, and business language connect.
+              </div>
+            </div>
+            <div class="panel">
+              <div class="source-title">Company B</div>
+              <div class="source-field"><span>client_segment</span><span>CRM</span></div>
+              <div class="tiny" style="--fill: 77%"></div>
+              <div class="source-field"><span>portfolio_band</span><span>sales</span></div>
+              <div class="tiny" style="--fill: 56%"></div>
+            </div>
+          </div>
+          <div class="ontology-card">
+            <strong>Unified Ontology Concept: Customer Classification</strong>
+            The graph is the hero. The concept card lands only after both systems have been semantically fused.
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="direction-body">
+      <h3>B. Dual-Dataset Fusion</h3>
+      <div class="meta">
+        <span>Best for your story</span>
+        <span>Two-company framing</span>
+        <span>Graph-first visual drama</span>
+      </div>
+      <p>
+        This makes the semantic merge between two enterprise databases the main event. It is the strongest choice if you want judges to remember the graph loading up as the AI resolves equivalence.
+      </p>
+    </div>
+  </div>
+
+  <div class="card direction-card" data-choice="c" onclick="toggleSelect(this)">
+    <div class="direction-frame">
+      <div class="mock-shell">
+        <span class="mock-chip">Option C</span>
+        <div class="timeline">
+          <div class="step"><strong>1. Ingest</strong>Schema fields, value samples, and source metadata enter the run.</div>
+          <div class="step"><strong>2. Interpret</strong>AI proposes candidates and asks ontology-aware questions.</div>
+          <div class="step"><strong>3. Graph Build</strong>Entity links accumulate and confidence shifts visibly.</div>
+          <div class="step"><strong>4. Approve</strong>Human reviewer locks the concept and snapshots lineage.</div>
+        </div>
+        <div class="lane row-3" style="margin-top: 1rem;">
+          <div class="panel"></div>
+          <div class="graph-core">
+            <div class="beam" style="left: 10%; top: 35%; width: 74%; transform: rotate(0deg);"></div>
+            <div class="node purple" style="left: 18%; top: 35%;"></div>
+            <div class="node" style="left: 49%; top: 35%;"></div>
+            <div class="node blue" style="left: 80%; top: 35%;"></div>
+            <div class="center-label">A guided, step-by-step reveal for a narrated demo.</div>
+          </div>
+          <div class="panel"></div>
+        </div>
+      </div>
+    </div>
+    <div class="direction-body">
+      <h3>C. Guided Decision Run</h3>
+      <div class="meta">
+        <span>Best for narration</span>
+        <span>Most product-like</span>
+        <span>Less immediate punch</span>
+      </div>
+      <p>
+        This feels like a real workflow tool with clearer steps, but the hero moment is distributed across the run instead of landing all at once.
+      </p>
+    </div>
+  </div>
+</div>

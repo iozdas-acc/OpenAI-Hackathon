@@ -1,0 +1,375 @@
+<style>
+  .grid {
+    display: grid;
+    gap: 1.25rem;
+  }
+
+  .variant {
+    border-radius: 28px;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    background:
+      linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.015)),
+      linear-gradient(135deg, #0a0b14, #080c18 45%, #07111c);
+  }
+
+  .stage {
+    min-height: 315px;
+    padding: 1rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .chrome {
+    min-height: 282px;
+    border-radius: 24px;
+    padding: 0.9rem;
+    border: 1px solid rgba(255,255,255,0.1);
+    background:
+      radial-gradient(circle at top right, rgba(0,194,255,0.11), transparent 28%),
+      radial-gradient(circle at top left, rgba(166,102,255,0.14), transparent 32%),
+      rgba(8, 10, 18, 0.92);
+  }
+
+  .tag {
+    display: inline-flex;
+    font-size: 0.65rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 0.28rem 0.56rem;
+    border-radius: 999px;
+    color: rgba(255,255,255,0.82);
+    border: 1px solid rgba(255,255,255,0.14);
+  }
+
+  .layout-a {
+    display: grid;
+    grid-template-columns: 1fr 1.35fr 1fr;
+    gap: 0.75rem;
+    margin-top: 0.95rem;
+  }
+
+  .layout-b {
+    display: grid;
+    grid-template-columns: 0.9fr 1.55fr 0.95fr;
+    gap: 0.75rem;
+    margin-top: 0.95rem;
+  }
+
+  .layout-c {
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+    gap: 0.75rem;
+    margin-top: 0.95rem;
+  }
+
+  .box {
+    border-radius: 18px;
+    padding: 0.82rem;
+    border: 1px solid rgba(255,255,255,0.09);
+    background: rgba(255,255,255,0.04);
+    min-height: 144px;
+  }
+
+  .box h4 {
+    margin: 0 0 0.55rem;
+    font-size: 0.78rem;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.68);
+  }
+
+  .field {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.5rem;
+    color: rgba(255,255,255,0.84);
+    font-size: 0.77rem;
+    margin-top: 0.5rem;
+  }
+
+  .bar {
+    height: 7px;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.08);
+    margin-top: 0.3rem;
+    overflow: hidden;
+  }
+
+  .bar::after {
+    content: "";
+    display: block;
+    height: 100%;
+    width: var(--w, 50%);
+    background: linear-gradient(90deg, #9d72ff, #07c8ff);
+    border-radius: inherit;
+  }
+
+  .graph {
+    position: relative;
+    border-radius: 22px;
+    min-height: 144px;
+    background:
+      radial-gradient(circle at center, rgba(255,255,255,0.07), transparent 38%),
+      rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.08);
+  }
+
+  .g-node {
+    position: absolute;
+    width: 11px;
+    height: 11px;
+    border-radius: 999px;
+    box-shadow: 0 0 0 7px rgba(255,255,255,0.05);
+  }
+
+  .g-node.a { background: #b487ff; box-shadow: 0 0 0 7px rgba(180,135,255,0.09); }
+  .g-node.b { background: #76e6ff; box-shadow: 0 0 0 7px rgba(118,230,255,0.09); }
+  .g-node.c { background: #c9ff71; box-shadow: 0 0 0 7px rgba(201,255,113,0.09); }
+
+  .link {
+    position: absolute;
+    height: 1px;
+    background: linear-gradient(90deg, rgba(118,230,255,0.08), rgba(180,135,255,0.95), rgba(201,255,113,0.12));
+    transform-origin: left center;
+  }
+
+  .center-copy {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 1rem 2rem;
+    font-size: 0.8rem;
+    color: rgba(255,255,255,0.8);
+    line-height: 1.5;
+  }
+
+  .concept {
+    border-radius: 18px;
+    padding: 0.82rem;
+    border: 1px solid rgba(197,255,125,0.2);
+    background: linear-gradient(135deg, rgba(186,255,122,0.16), rgba(7,200,255,0.08));
+    color: rgba(255,255,255,0.92);
+  }
+
+  .concept strong {
+    display: block;
+    margin-bottom: 0.35rem;
+  }
+
+  .signal {
+    margin-top: 0.6rem;
+    display: grid;
+    gap: 0.45rem;
+  }
+
+  .signal div {
+    border-radius: 12px;
+    padding: 0.48rem 0.58rem;
+    background: rgba(255,255,255,0.05);
+    font-size: 0.74rem;
+    color: rgba(255,255,255,0.76);
+  }
+
+  .footer {
+    padding: 1rem;
+  }
+
+  .footer h3 {
+    margin: 0;
+    font-size: 1.08rem;
+  }
+
+  .chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin: 0.7rem 0 0.82rem;
+  }
+
+  .chips span {
+    padding: 0.26rem 0.54rem;
+    border-radius: 999px;
+    font-size: 0.71rem;
+    border: 1px solid rgba(255,255,255,0.1);
+    color: rgba(255,255,255,0.7);
+  }
+
+  .footer p {
+    margin: 0;
+    color: rgba(255,255,255,0.76);
+    line-height: 1.55;
+  }
+
+  .top-rail {
+    display: grid;
+    grid-template-columns: 1fr 1.3fr 1fr;
+    gap: 0.75rem;
+  }
+
+  .mini-stages {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.55rem;
+  }
+
+  .mini {
+    border-radius: 14px;
+    border: 1px solid rgba(255,255,255,0.08);
+    background: rgba(255,255,255,0.04);
+    padding: 0.55rem;
+    min-height: 70px;
+    font-size: 0.72rem;
+    color: rgba(255,255,255,0.74);
+  }
+</style>
+
+<h2>Loop 2: Fusion Layout Variants</h2>
+<p class="subtitle">
+  I’ve already chosen the two-dataset fusion concept. This round decides the exact composition for the hackathon demo screen.
+</p>
+
+<div class="cards grid">
+  <div class="card variant" data-choice="fusion-theater" onclick="toggleSelect(this)">
+    <div class="stage">
+      <div class="chrome">
+        <span class="tag">Variant 1</span>
+        <div class="layout-a">
+          <div class="box">
+            <h4>Company A Inputs</h4>
+            <div class="field"><span>customer_tier</span><span>ERP</span></div>
+            <div class="bar" style="--w:72%"></div>
+            <div class="field"><span>acct_status</span><span>billing</span></div>
+            <div class="bar" style="--w:55%"></div>
+            <div class="field"><span>region_group</span><span>ops</span></div>
+            <div class="bar" style="--w:44%"></div>
+          </div>
+          <div class="graph">
+            <div class="link" style="left:12%;top:24%;width:72%;transform:rotate(8deg)"></div>
+            <div class="link" style="left:20%;top:66%;width:58%;transform:rotate(-14deg)"></div>
+            <div class="g-node a" style="left:15%;top:22%"></div>
+            <div class="g-node b" style="left:26%;top:68%"></div>
+            <div class="g-node c" style="left:51%;top:46%"></div>
+            <div class="g-node a" style="left:81%;top:34%"></div>
+            <div class="g-node b" style="left:70%;top:76%"></div>
+            <div class="center-copy">The graph is the stage. Inputs on both sides prove this is a merge, not a single-database cleanup.</div>
+          </div>
+          <div class="box">
+            <h4>Company B Inputs</h4>
+            <div class="field"><span>client_segment</span><span>CRM</span></div>
+            <div class="bar" style="--w:79%"></div>
+            <div class="field"><span>portfolio_band</span><span>sales</span></div>
+            <div class="bar" style="--w:61%"></div>
+            <div class="field"><span>market_motion</span><span>CSM</span></div>
+            <div class="bar" style="--w:47%"></div>
+          </div>
+        </div>
+        <div class="concept" style="margin-top:0.75rem;">
+          <strong>Proposed ontology concept: Customer Classification</strong>
+          Confidence lifts as cross-company nodes align to one shared business meaning.
+        </div>
+      </div>
+    </div>
+    <div class="footer">
+      <h3>1. Fusion Theater</h3>
+      <div class="chips">
+        <span>Most balanced</span>
+        <span>Best first impression</span>
+        <span>Easy to build now</span>
+      </div>
+      <p>Strongest single-screen demo for judges. The story reads instantly and still leaves room for future real data panels.</p>
+    </div>
+  </div>
+
+  <div class="card variant" data-choice="evidence-rail" onclick="toggleSelect(this)">
+    <div class="stage">
+      <div class="chrome">
+        <span class="tag">Variant 2</span>
+        <div class="layout-b">
+          <div class="box">
+            <h4>Semantic Evidence</h4>
+            <div class="signal">
+              <div>Label similarity: customer_tier ≈ client_segment</div>
+              <div>Value overlap: enterprise / smb / strategic</div>
+              <div>Neighborhood match: account, contract, region</div>
+              <div>Graph boost: 11 new entity links</div>
+            </div>
+          </div>
+          <div class="graph" style="min-height:208px;">
+            <div class="link" style="left:7%;top:25%;width:83%;transform:rotate(14deg)"></div>
+            <div class="link" style="left:13%;top:53%;width:69%;transform:rotate(-8deg)"></div>
+            <div class="link" style="left:33%;top:76%;width:42%;transform:rotate(-24deg)"></div>
+            <div class="g-node a" style="left:9%;top:22%"></div>
+            <div class="g-node b" style="left:18%;top:58%"></div>
+            <div class="g-node c" style="left:41%;top:36%"></div>
+            <div class="g-node a" style="left:59%;top:67%"></div>
+            <div class="g-node b" style="left:76%;top:29%"></div>
+            <div class="g-node c" style="left:88%;top:69%"></div>
+            <div class="center-copy">A larger graph makes the intelligence feel alive. The left rail explains why the AI is confident instead of asking the audience to trust a number.</div>
+          </div>
+          <div class="box">
+            <h4>Output</h4>
+            <div class="concept">
+              <strong>Customer Classification</strong>
+              Final candidate with lineage and evidence retained for human approval.
+            </div>
+            <div class="signal">
+              <div>Confidence 0.93</div>
+              <div>Needs human confirmation</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="footer">
+      <h3>2. Evidence Rail</h3>
+      <div class="chips">
+        <span>Most intelligent</span>
+        <span>Best graph presence</span>
+        <span>Higher information density</span>
+      </div>
+      <p>This is the most convincing “AI actually reasoned about the merge” composition. It is denser, but it tells the strongest product story for judges who want proof.</p>
+    </div>
+  </div>
+
+  <div class="card variant" data-choice="run-storyboard" onclick="toggleSelect(this)">
+    <div class="stage">
+      <div class="chrome">
+        <span class="tag">Variant 3</span>
+        <div class="layout-c">
+          <div class="mini-stages">
+            <div class="mini">Ingest schemas</div>
+            <div class="mini">Infer candidate meaning</div>
+            <div class="mini">Load graph links</div>
+            <div class="mini">Propose concept</div>
+          </div>
+          <div class="graph" style="min-height:168px;">
+            <div class="link" style="left:18%;top:30%;width:64%;transform:rotate(12deg)"></div>
+            <div class="link" style="left:23%;top:65%;width:54%;transform:rotate(-15deg)"></div>
+            <div class="g-node a" style="left:18%;top:28%"></div>
+            <div class="g-node b" style="left:28%;top:66%"></div>
+            <div class="g-node c" style="left:52%;top:47%"></div>
+            <div class="g-node a" style="left:78%;top:34%"></div>
+            <div class="g-node b" style="left:71%;top:73%"></div>
+            <div class="center-copy">Best for a narrated step-by-step talk track, but less explosive as a first visual.</div>
+          </div>
+          <div class="concept">
+            <strong>Customer Classification</strong>
+            A guided reveal path with the graph acting as the climax.
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="footer">
+      <h3>3. Run Storyboard</h3>
+      <div class="chips">
+        <span>Most tutorial-friendly</span>
+        <span>Less dramatic</span>
+        <span>Better for later productization</span>
+      </div>
+      <p>Useful if the demo is tightly narrated, but it gives up some of the instant “wow” you need in a hackathon setting.</p>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,2971 @@
+===== FILE: apps/api/README.md =====
+FastAPI backend for the Codex-native `Understand` workflow.
+
+Current scope:
+
+- create projects
+- create source/target database connections
+- attach project files
+- create `understand` runs
+- persist run history locally
+- stream run events over SSE
+- call Codex through the OpenAI Responses API
+
+## Environment
+
+Required for real Codex runs:
+
+- `OPENAI_API_KEY`
+
+Optional:
+
+- `OPENAI_CODEX_MODEL` default: `gpt-5-codex`
+- `OPENAI_BASE_URL` default: `https://api.openai.com/v1`
+- `CODEX_STORE_DIR` or `SEMANTIC_API_DATA_DIR` for local persistence
+- target Postgres connection settings such as `POSTGRES_HOST`, `POSTGRES_PORT`, `POSTGRES_DB`,
+  `POSTGRES_USER`, `POSTGRES_PASSWORD`, and optional `POSTGRES_SSLMODE`
+
+## Run
+
+From `apps/api`:
+
+```bash
+./.venv/bin/uvicorn main:app --reload
+```
+
+## API
+
+### Create project
+
+```bash
+curl -X POST http://127.0.0.1:8000/projects \
+  -H 'content-type: application/json' \
+  -d '{"name":"Acme Migration","description":"Acquired company ontology intake"}'
+```
+
+### Attach file
+
+The upload endpoint accepts raw request bytes and reads the filename from `x-filename`.
+
+```bash
+curl -X POST http://127.0.0.1:8000/projects/<project_id>/files \
+  -H 'x-filename: schema.csv' \
+  -H 'content-type: text/csv' \
+  --data-binary @schema.csv
+```
+
+### Create run
+
+```bash
+curl -X POST http://127.0.0.1:8000/projects/<project_id>/runs \
+  -H 'content-type: application/json' \
+  -d '{"mode":"understand","instructions":"Analyze this schema and infer business meaning."}'
+```
+
+### Create database connection
+
+```bash
+curl -X POST http://127.0.0.1:8000/projects/<project_id>/connections \
+  -H 'content-type: application/json' \
+  -d '{"name":"Supabase Target","role":"target","kind":"supabase","config":{}}'
+```
+
+### Stream run events
+
+```bash
+curl -N http://127.0.0.1:8000/runs/<run_id>/events
+```
+
+## Event types
+
+- `run_created`
+- `file_attached`
+- `codex_started`
+- `reasoning_summary`
+- `node_created`
+- `edge_created`
+- `question_raised`
+- `confidence_changed`
+- `run_completed`
+- `run_failed`
+
+If `OPENAI_API_KEY` is missing, runs still persist and terminate with `run_failed` so the UI can
+surface the problem cleanly.
+
+
+===== FILE: apps/api/app/__init__.py =====
+from __future__ import annotations
+
+from .models import (
+    ConnectionKind,
+    ConnectionRole,
+    ConfidenceSummary,
+    DatabaseConnection,
+    Entity,
+    EventType,
+    FieldDescriptor,
+    FileRecord,
+    GraphEdge,
+    GraphNode,
+    GraphSnapshot,
+    InferredMeaning,
+    Project,
+    Question,
+    ReviewDecision,
+    ReviewType,
+    Run,
+    RunEvent,
+    RunStatus,
+    UnderstandResult,
+)
+from .store import LocalStore
+
+__all__ = [
+    "ConfidenceSummary",
+    "ConnectionKind",
+    "ConnectionRole",
+    "DatabaseConnection",
+    "Entity",
+    "EventType",
+    "FieldDescriptor",
+    "FileRecord",
+    "GraphEdge",
+    "GraphNode",
+    "GraphSnapshot",
+    "InferredMeaning",
+    "LocalStore",
+    "Project",
+    "Question",
+    "ReviewDecision",
+    "ReviewType",
+    "Run",
+    "RunEvent",
+    "RunStatus",
+    "UnderstandResult",
+]
+
+
+===== FILE: apps/api/app/api_models.py =====
+from __future__ import annotations
+
+from typing import Any, Dict, List, Literal, Optional
+
+from pydantic import BaseModel, Field
+
+from .models import ConnectionKind, ConnectionRole, ReviewDecision
+
+
+class CreateProjectRequest(BaseModel):
+    name: str = Field(min_length=1, max_length=200)
+    description: Optional[str] = Field(default=None, max_length=4000)
+
+
+class CreateRunRequest(BaseModel):
+    mode: str = Field(default="understand")
+    instructions: str = Field(min_length=1, max_length=12000)
+    user_notes: Optional[str] = Field(default=None, max_length=12000)
+    source_connection_id: Optional[str] = Field(default=None, min_length=1, max_length=200)
+    target_connection_id: Optional[str] = Field(default=None, min_length=1, max_length=200)
+
+
+class CreateConnectionRequest(BaseModel):
+    name: str = Field(min_length=1, max_length=200)
+    role: ConnectionRole
+    kind: ConnectionKind
+    config: Dict[str, Any] = Field(default_factory=dict)
+    metadata: Dict[str, Any] = Field(default_factory=dict)
+
+
+class SubmitReviewRequest(BaseModel):
+    decision: ReviewDecision
+    notes: Optional[str] = Field(default=None, max_length=4000)
+
+
+class TriggerMigrationRequest(BaseModel):
+    notes: Optional[str] = Field(default=None, max_length=4000)
+
+
+class ErrorResponse(BaseModel):
+    detail: str
+
+
+CodexActionName = Literal[
+    "explain_mapping",
+    "draft_reviewer_note",
+    "approve_mapping",
+    "reject_mapping",
+    "rerun_reasoning",
+    "prepare_package",
+]
+
+
+class CodexChatMessage(BaseModel):
+    role: Literal["system", "user", "assistant"] = Field(default="user")
+    content: str = Field(min_length=1, max_length=24000)
+
+
+class CodexActionContext(BaseModel):
+    run_id: Optional[str] = Field(default=None, max_length=200)
+    project_id: Optional[str] = Field(default=None, max_length=200)
+    case_id: Optional[str] = Field(default=None, max_length=200)
+    selected_mapping_id: Optional[str] = Field(default=None, max_length=200)
+    requested_action: Optional[CodexActionName] = Field(default=None)
+    available_actions: List[CodexActionName] = Field(default_factory=list)
+    ui_state: Dict[str, Any] = Field(default_factory=dict)
+
+
+class CodexChatStreamRequest(BaseModel):
+    messages: List[CodexChatMessage] = Field(min_length=1, max_length=100)
+    action_context: Optional[CodexActionContext] = Field(default=None)
+    session_id: Optional[str] = Field(default=None, max_length=200)
+    model: Optional[str] = Field(default=None, max_length=200)
+
+
+class CodexChatStreamEvent(BaseModel):
+    type: str
+    data: Dict[str, Any] = Field(default_factory=dict)
+
+
+===== FILE: apps/api/app/codex_chat.py =====
+from __future__ import annotations
+
+import asyncio
+import json
+from datetime import datetime, timezone
+from typing import Any, AsyncIterator, Dict, Iterable, Optional
+
+from .api_models import CodexActionContext, CodexChatStreamRequest
+
+try:
+    from openai import AsyncOpenAI
+except ImportError:  # pragma: no cover - package is optional in local fallback mode
+    AsyncOpenAI = None  # type: ignore[assignment]
+
+
+DEFAULT_MODEL = "gpt-4.1-mini"
+DEFAULT_ACTIONS = [
+    "explain_mapping",
+    "draft_reviewer_note",
+    "approve_mapping",
+    "reject_mapping",
+    "rerun_reasoning",
+    "prepare_package",
+]
+
+
+def _utcnow() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
+
+def _sse(event_type: str, data: Dict[str, Any]) -> str:
+    return "event: {event}\ndata: {data}\n\n".format(
+        event=event_type,
+        data=json.dumps(data),
+    )
+
+
+def _event_type(event: Any) -> str:
+    if hasattr(event, "type"):
+        return str(getattr(event, "type"))
+    if isinstance(event, dict):
+        return str(event.get("type", ""))
+    return ""
+
+
+def _event_value(event: Any, key: str, default: Any = None) -> Any:
+    if hasattr(event, key):
+        return getattr(event, key)
+    if isinstance(event, dict):
+        return event.get(key, default)
+    return default
+
+
+def _chunk_text(text: str, chunk_size: int = 72) -> Iterable[str]:
+    for idx in range(0, len(text), chunk_size):
+        yield text[idx : idx + chunk_size]
+
+
+def _effective_actions(action_context: Optional[CodexActionContext]) -> list[str]:
+    if action_context is None:
+        return list(DEFAULT_ACTIONS)
+    actions = [action for action in action_context.available_actions if action in DEFAULT_ACTIONS]
+    return actions or list(DEFAULT_ACTIONS)
+
+
+def _simulate_demo_action(action_context: Optional[CodexActionContext]) -> Optional[Dict[str, Any]]:
+    if action_context is None or action_context.requested_action is None:
+        return None
+
+    action = action_context.requested_action
+    selected_mapping_id = action_context.selected_mapping_id or "map_demo_001"
+    payload: Dict[str, Any] = {
+        "action": action,
+        "run_id": action_context.run_id,
+        "project_id": action_context.project_id,
+        "case_id": action_context.case_id,
+        "selected_mapping_id": selected_mapping_id,
+        "executed_at": _utcnow(),
+        "mode": "demo_simulated",
+    }
+
+    if action == "explain_mapping":
+        payload["result"] = {
+            "explanation": (
+                "Source and target fields share customer identity semantics with compatible constraints; "
+                "this mapping is likely valid pending human review."
+            )
+        }
+    elif action == "draft_reviewer_note":
+        payload["result"] = {
+            "note": (
+                "Draft: Mapping appears semantically aligned based on naming, value distribution, and graph context. "
+                "Recommend approve unless downstream constraints conflict."
+            )
+        }
+    elif action == "approve_mapping":
+        payload["result"] = {"decision": "approved", "new_status": "mapping_approved_demo"}
+    elif action == "reject_mapping":
+        payload["result"] = {"decision": "rejected", "new_status": "mapping_rejected_demo"}
+    elif action == "rerun_reasoning":
+        payload["result"] = {"job_status": "queued", "job_id": f"rerun_{selected_mapping_id}"}
+    elif action == "prepare_package":
+        payload["result"] = {"package_status": "prepared", "package_id": f"pkg_{selected_mapping_id}"}
+    else:
+        payload["result"] = {"message": "Action not recognized in demo mode."}
+
+    return payload
+
+
+def _build_system_prompt(actions: list[str], action_result: Optional[Dict[str, Any]]) -> str:
+    lines = [
+        "You are Codex assisting a migration review workspace demo.",
+        "Use concise, direct responses and reference available UI actions when useful.",
+        "Available demo actions: {actions}.".format(actions=", ".join(actions)),
+        "If an action has already been executed server-side, incorporate its result into your response.",
+    ]
+    if action_result:
+        lines.append("Executed action payload: {payload}".format(payload=json.dumps(action_result)))
+    return "\n".join(lines)
+
+
+def _build_model_input(
+    request: CodexChatStreamRequest,
+    action_result: Optional[Dict[str, Any]],
+) -> list[Dict[str, str]]:
+    actions = _effective_actions(request.action_context)
+    messages: list[Dict[str, str]] = [{"role": "system", "content": _build_system_prompt(actions, action_result)}]
+
+    for message in request.messages:
+        messages.append({"role": message.role, "content": message.content})
+
+    return messages
+
+
+def _extract_output_text(response_payload: Any) -> str:
+    if response_payload is None:
+        return ""
+
+    if isinstance(response_payload, dict):
+        output_text = response_payload.get("output_text")
+        if isinstance(output_text, str):
+            return output_text
+        return ""
+
+    output_text = getattr(response_payload, "output_text", "")
+    if isinstance(output_text, str):
+        return output_text
+    return ""
+
+
+async def _stream_fallback(
+    request: CodexChatStreamRequest,
+    *,
+    reason: str,
+    action_result: Optional[Dict[str, Any]],
+    model: str,
+) -> AsyncIterator[str]:
+    last_user_message = next((msg.content for msg in reversed(request.messages) if msg.role == "user"), "")
+    fallback_text = (
+        "Demo mode active. {reason} "
+        "I can still guide the review flow and simulate actions while the UI/backend integration is tested."
+    ).format(reason=reason)
+    if last_user_message:
+        fallback_text += " You asked: {message}".format(message=last_user_message)
+    if action_result:
+        fallback_text += " Executed action: {action}.".format(action=action_result.get("action", "unknown"))
+
+    yield _sse(
+        "meta",
+        {
+            "status": "fallback",
+            "reason": reason,
+            "model": model,
+        },
+    )
+    if action_result:
+        yield _sse("tool_action", action_result)
+
+    for chunk in _chunk_text(fallback_text):
+        yield _sse("assistant_delta", {"delta": chunk})
+        await asyncio.sleep(0.03)
+
+    yield _sse("done", {"status": "completed", "mode": "fallback"})
+
+
+async def stream_codex_chat(
+    request: CodexChatStreamRequest,
+    *,
+    api_key: Optional[str],
+    model: Optional[str] = None,
+) -> AsyncIterator[str]:
+    chosen_model = model or request.model or DEFAULT_MODEL
+    action_result = _simulate_demo_action(request.action_context)
+
+    if not api_key:
+        async for chunk in _stream_fallback(
+            request,
+            reason="OPENAI_API_KEY is not configured on the server.",
+            action_result=action_result,
+            model=chosen_model,
+        ):
+            yield chunk
+        return
+
+    if AsyncOpenAI is None:
+        async for chunk in _stream_fallback(
+            request,
+            reason="The openai package is not installed in this API environment.",
+            action_result=action_result,
+            model=chosen_model,
+        ):
+            yield chunk
+        return
+
+    client = AsyncOpenAI(api_key=api_key)
+    model_input = _build_model_input(request, action_result)
+    yielded_text = False
+
+    try:
+        yield _sse("meta", {"status": "connected", "model": chosen_model})
+        if action_result:
+            yield _sse("tool_action", action_result)
+
+        stream = await client.responses.create(
+            model=chosen_model,
+            input=model_input,
+            stream=True,
+        )
+        async for event in stream:
+            event_type = _event_type(event)
+            if event_type == "response.output_text.delta":
+                delta = _event_value(event, "delta", "")
+                if isinstance(delta, str) and delta:
+                    yielded_text = True
+                    yield _sse("assistant_delta", {"delta": delta})
+            elif event_type == "response.error":
+                error_payload = _event_value(event, "error", {})
+                yield _sse("error", {"message": str(error_payload)})
+            elif event_type == "response.completed":
+                response_payload = _event_value(event, "response")
+                if not yielded_text:
+                    final_text = _extract_output_text(response_payload)
+                    for chunk in _chunk_text(final_text):
+                        yield _sse("assistant_delta", {"delta": chunk})
+                yield _sse("done", {"status": "completed", "mode": "openai"})
+                return
+
+        yield _sse("done", {"status": "completed", "mode": "openai"})
+    except Exception as exc:  # pragma: no cover - exercised in live integration
+        async for chunk in _stream_fallback(
+            request,
+            reason="OpenAI request failed: {error}".format(error=str(exc)),
+            action_result=action_result,
+            model=chosen_model,
+        ):
+            yield chunk
+
+
+===== FILE: apps/api/app/models.py =====
+from __future__ import annotations
+
+from datetime import datetime
+from enum import Enum
+from typing import Any, Dict, List, Optional
+
+from pydantic import BaseModel, Field
+
+
+class RunStatus(str, Enum):
+    PENDING = "pending"
+    RUNNING = "running"
+    AWAITING_CRAWL_REVIEW = "awaiting_crawl_review"
+    AWAITING_REASONING_REVIEW = "awaiting_reasoning_review"
+    AWAITING_MAPPING_REVIEW = "awaiting_mapping_review"
+    MIGRATION_READY = "migration_ready"
+    MIGRATING = "migrating"
+    MIGRATION_COMPLETED = "migration_completed"
+    COMPLETED = "completed"
+    FAILED = "failed"
+
+
+class EventType(str, Enum):
+    RUN_CREATED = "run_created"
+    FILE_ATTACHED = "file_attached"
+    CODEX_STARTED = "codex_started"
+    REASONING_SUMMARY = "reasoning_summary"
+    NODE_CREATED = "node_created"
+    EDGE_CREATED = "edge_created"
+    QUESTION_RAISED = "question_raised"
+    CONFIDENCE_CHANGED = "confidence_changed"
+    SOURCE_CRAWL_STARTED = "source_crawl_started"
+    SOURCE_CRAWL_COMPLETED = "source_crawl_completed"
+    TARGET_CRAWL_STARTED = "target_crawl_started"
+    TARGET_CRAWL_COMPLETED = "target_crawl_completed"
+    CONTEXT_GRAPH_BUILT = "context_graph_built"
+    CRAWL_REVIEW_REQUIRED = "crawl_review_required"
+    SEMANTIC_REASONING_STARTED = "semantic_reasoning_started"
+    SEMANTIC_REASONING_COMPLETED = "semantic_reasoning_completed"
+    REASONING_REVIEW_REQUIRED = "reasoning_review_required"
+    MAPPINGS_PROPOSED = "mappings_proposed"
+    MAPPING_REVIEW_REQUIRED = "mapping_review_required"
+    REVIEW_SUBMITTED = "review_submitted"
+    MIGRATION_READY = "migration_ready"
+    MIGRATION_TRIGGERED = "migration_triggered"
+    MIGRATION_COMPLETED = "migration_completed"
+    RUN_COMPLETED = "run_completed"
+    RUN_FAILED = "run_failed"
+
+
+class ConnectionRole(str, Enum):
+    SOURCE = "source"
+    TARGET = "target"
+
+
+class ConnectionKind(str, Enum):
+    ORACLE = "oracle"
+    SUPABASE = "supabase"
+    POSTGRES = "postgres"
+
+
+class ReviewType(str, Enum):
+    CRAWL = "crawl"
+    REASONING = "reasoning"
+    MAPPINGS = "mappings"
+
+
+class ReviewDecision(str, Enum):
+    APPROVE = "approve"
+    REJECT = "reject"
+    DEFER = "defer"
+    REQUEST_CHANGES = "request_changes"
+
+
+class Project(BaseModel):
+    id: str
+    name: str
+    description: Optional[str] = None
+    metadata: Dict[str, Any] = Field(default_factory=dict)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class FileRecord(BaseModel):
+    id: str
+    project_id: str
+    name: str
+    filename: str
+    size_bytes: int
+    checksum: Optional[str] = None
+    metadata: Dict[str, Any] = Field(default_factory=dict)
+    uploaded_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class DatabaseConnection(BaseModel):
+    id: str
+    project_id: str
+    name: str
+    role: ConnectionRole
+    kind: ConnectionKind
+    config: Dict[str, Any] = Field(default_factory=dict)
+    metadata: Dict[str, Any] = Field(default_factory=dict)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class Run(BaseModel):
+    id: str
+    project_id: str
+    mode: str
+    instructions: str
+    status: RunStatus = RunStatus.PENDING
+    metadata: Dict[str, Any] = Field(default_factory=dict)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    started_at: Optional[datetime] = None
+    completed_at: Optional[datetime] = None
+
+
+class RunEvent(BaseModel):
+    id: str
+    run_id: str
+    project_id: str
+    type: EventType
+    payload: Dict[str, Any] = Field(default_factory=dict)
+    timestamp: datetime = Field(default_factory=datetime.utcnow)
+
+
+class GraphNode(BaseModel):
+    id: str
+    run_id: str
+    label: str
+    type: str
+    data: Dict[str, Any] = Field(default_factory=dict)
+    metadata: Dict[str, Any] = Field(default_factory=dict)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class GraphEdge(BaseModel):
+    id: str
+    run_id: str
+    source: str
+    target: str
+    relation: str
+    metadata: Dict[str, Any] = Field(default_factory=dict)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class GraphSnapshot(BaseModel):
+    run_id: str
+    version: int = 1
+    nodes: List[GraphNode] = Field(default_factory=list)
+    edges: List[GraphEdge] = Field(default_factory=list)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class Entity(BaseModel):
+    name: str
+    description: Optional[str] = None
+    confidence: Optional[float] = None
+    metadata: Dict[str, Any] = Field(default_factory=dict)
+
+
+class FieldDescriptor(BaseModel):
+    name: str
+    entity: Optional[str] = None
+    semantic_type: Optional[str] = None
+    description: Optional[str] = None
+    confidence: Optional[float] = None
+
+
+class InferredMeaning(BaseModel):
+    subject: str
+    meaning: str
+    confidence: Optional[float] = None
+
+
+class Question(BaseModel):
+    prompt: str
+    context: Optional[str] = None
+    severity: Optional[str] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class ConfidenceSummary(BaseModel):
+    overall: float = 0.0
+    by_entity: Dict[str, float] = Field(default_factory=dict)
+
+
+class UnderstandResult(BaseModel):
+    run_id: str
+    summary: str = ""
+    entities: List[Entity] = Field(default_factory=list)
+    fields: List[FieldDescriptor] = Field(default_factory=list)
+    inferred_meanings: List[InferredMeaning] = Field(default_factory=list)
+    questions: List[Question] = Field(default_factory=list)
+    confidence: ConfidenceSummary = Field(default_factory=ConfidenceSummary)
+    graph_snapshot: Optional[GraphSnapshot] = None
+    produced_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+===== FILE: apps/api/app/runtime.py =====
+from __future__ import annotations
+
+import asyncio
+from collections import defaultdict
+from contextlib import asynccontextmanager
+from typing import AsyncIterator
+
+
+class EventHub:
+    def __init__(self) -> None:
+        self._subscribers: dict[str, set[asyncio.Queue[str]]] = defaultdict(set)
+        self._lock = asyncio.Lock()
+
+    async def publish(self, run_id: str, message: str) -> None:
+        async with self._lock:
+            subscribers = list(self._subscribers.get(run_id, set()))
+
+        for queue in subscribers:
+            await queue.put(message)
+
+    @asynccontextmanager
+    async def subscribe(self, run_id: str) -> AsyncIterator[asyncio.Queue[str]]:
+        queue: asyncio.Queue[str] = asyncio.Queue()
+
+        async with self._lock:
+            self._subscribers[run_id].add(queue)
+
+        try:
+            yield queue
+        finally:
+            async with self._lock:
+                subscribers = self._subscribers.get(run_id)
+                if not subscribers:
+                    return
+
+                subscribers.discard(queue)
+                if not subscribers:
+                    self._subscribers.pop(run_id, None)
+
+
+===== FILE: apps/api/app/store.py =====
+from __future__ import annotations
+
+import json
+import os
+import uuid
+from hashlib import sha256
+from datetime import datetime
+from pathlib import Path
+from threading import Lock
+from typing import Any, Dict, Iterable, List, Optional
+
+from pydantic import BaseModel
+
+from .models import (
+    ConnectionKind,
+    ConnectionRole,
+    DatabaseConnection,
+    EventType,
+    FileRecord,
+    GraphEdge,
+    GraphNode,
+    GraphSnapshot,
+    Project,
+    Run,
+    RunEvent,
+    RunStatus,
+    UnderstandResult,
+)
+
+
+def _model_dict(model: BaseModel) -> Dict[str, Any]:
+    return json.loads(model.json())
+
+
+def _new_id() -> str:
+    return uuid.uuid4().hex
+
+
+class LocalStore:
+    STORE_ENV = "CODEX_STORE_DIR"  # configurable root path for persistence
+
+    def __init__(self, data_dir: Optional[Path] = None) -> None:
+        raw_dir = data_dir or os.getenv(self.STORE_ENV) or Path("data") / "codex-backend"
+        self.base_dir = Path(raw_dir)
+        self.base_dir.mkdir(parents=True, exist_ok=True)
+        self._dict_paths: Dict[str, Path] = {
+            "connections": self.base_dir / "connections.json",
+            "projects": self.base_dir / "projects.json",
+            "files": self.base_dir / "files.json",
+            "runs": self.base_dir / "runs.json",
+            "results": self.base_dir / "results.json",
+        }
+        self._list_paths: Dict[str, Path] = {
+            "events": self.base_dir / "events.json",
+            "graph_nodes": self.base_dir / "graph_nodes.json",
+            "graph_edges": self.base_dir / "graph_edges.json",
+        }
+        self.snapshots_dir = self.base_dir / "snapshots"
+        self.snapshots_dir.mkdir(exist_ok=True)
+        self.uploads_dir = self.base_dir / "uploads"
+        self.uploads_dir.mkdir(exist_ok=True)
+        self._lock = Lock()
+
+    def _read_dict(self, key: str) -> Dict[str, Any]:
+        path = self._dict_paths[key]
+        if not path.exists():
+            return {}
+        with path.open("r", encoding="utf-8") as handle:
+            return json.load(handle)
+
+    def _write_dict(self, key: str, payload: Dict[str, Any]) -> None:
+        path = self._dict_paths[key]
+        with path.open("w", encoding="utf-8") as handle:
+            json.dump(payload, handle, indent=2)
+
+    def _read_list(self, key: str) -> List[Dict[str, Any]]:
+        path = self._list_paths[key]
+        if not path.exists():
+            return []
+        with path.open("r", encoding="utf-8") as handle:
+            return json.load(handle)
+
+    def _write_list(self, key: str, payload: Iterable[Dict[str, Any]]) -> None:
+        path = self._list_paths[key]
+        with path.open("w", encoding="utf-8") as handle:
+            json.dump(list(payload), handle, indent=2)
+
+    def create_project(
+        self,
+        name: str,
+        description: Optional[str] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> Project:
+        project = Project(
+            id=_new_id(),
+            name=name,
+            description=description,
+            metadata=metadata or {},
+        )
+        with self._lock:
+            data = self._read_dict("projects")
+            data[project.id] = _model_dict(project)
+            self._write_dict("projects", data)
+        return project
+
+    def create_connection(
+        self,
+        project_id: str,
+        name: str,
+        role: ConnectionRole,
+        kind: ConnectionKind,
+        config: Optional[Dict[str, Any]] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> DatabaseConnection:
+        connection = DatabaseConnection(
+            id=_new_id(),
+            project_id=project_id,
+            name=name,
+            role=role,
+            kind=kind,
+            config=config or {},
+            metadata=metadata or {},
+        )
+        with self._lock:
+            data = self._read_dict("connections")
+            data[connection.id] = _model_dict(connection)
+            self._write_dict("connections", data)
+        return connection
+
+    def get_connection(self, connection_id: str) -> Optional[DatabaseConnection]:
+        with self._lock:
+            data = self._read_dict("connections")
+            raw = data.get(connection_id)
+        return DatabaseConnection(**raw) if raw else None
+
+    def list_connections(self, project_id: Optional[str] = None) -> List[DatabaseConnection]:
+        with self._lock:
+            records = list(self._read_dict("connections").values())
+        connections = [DatabaseConnection(**raw) for raw in records]
+        if project_id:
+            connections = [entry for entry in connections if entry.project_id == project_id]
+        return connections
+
+    def get_project(self, project_id: str) -> Optional[Project]:
+        with self._lock:
+            data = self._read_dict("projects")
+            raw = data.get(project_id)
+        return Project(**raw) if raw else None
+
+    def list_projects(self) -> List[Project]:
+        with self._lock:
+            records = list(self._read_dict("projects").values())
+        return [Project(**raw) for raw in records]
+
+    def update_project(
+        self,
+        project_id: str,
+        name: Optional[str] = None,
+        description: Optional[str] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> Optional[Project]:
+        with self._lock:
+            data = self._read_dict("projects")
+            raw = data.get(project_id)
+            if not raw:
+                return None
+            project = Project(**raw)
+            updates: Dict[str, Any] = {}
+            if name is not None:
+                updates["name"] = name
+            if description is not None:
+                updates["description"] = description
+            if metadata is not None:
+                updates["metadata"] = metadata
+            updates["updated_at"] = datetime.utcnow()
+            project = project.copy(update=updates)
+            data[project_id] = _model_dict(project)
+            self._write_dict("projects", data)
+        return project
+
+    def delete_project(self, project_id: str) -> bool:
+        with self._lock:
+            data = self._read_dict("projects")
+            if project_id not in data:
+                return False
+            data.pop(project_id)
+            self._write_dict("projects", data)
+        return True
+
+    def create_file(
+        self,
+        project_id: str,
+        name: str,
+        filename: str,
+        size_bytes: int,
+        checksum: Optional[str] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> FileRecord:
+        record = FileRecord(
+            id=_new_id(),
+            project_id=project_id,
+            name=name,
+            filename=filename,
+            size_bytes=size_bytes,
+            checksum=checksum,
+            metadata=metadata or {},
+        )
+        with self._lock:
+            data = self._read_dict("files")
+            data[record.id] = _model_dict(record)
+            self._write_dict("files", data)
+        return record
+
+    def attach_file(
+        self,
+        project_id: str,
+        filename: str,
+        content_type: str,
+        content: bytes,
+    ) -> FileRecord:
+        project_dir = self.uploads_dir / project_id
+        project_dir.mkdir(parents=True, exist_ok=True)
+
+        file_id = _new_id()
+        stored_name = "{file_id}_{filename}".format(file_id=file_id, filename=filename)
+        file_path = project_dir / stored_name
+        file_path.write_bytes(content)
+
+        checksum = sha256(content).hexdigest()
+        return self.create_file(
+            project_id=project_id,
+            name=filename,
+            filename=filename,
+            size_bytes=len(content),
+            checksum=checksum,
+            metadata={
+                "content_type": content_type,
+                "path": str(file_path),
+            },
+        )
+
+    def get_file(self, file_id: str) -> Optional[FileRecord]:
+        with self._lock:
+            data = self._read_dict("files")
+            raw = data.get(file_id)
+        return FileRecord(**raw) if raw else None
+
+    def list_files(self, project_id: Optional[str] = None) -> List[FileRecord]:
+        with self._lock:
+            records = list(self._read_dict("files").values())
+        files = [FileRecord(**raw) for raw in records]
+        if project_id:
+            files = [record for record in files if record.project_id == project_id]
+        return files
+
+    def delete_file(self, file_id: str) -> bool:
+        with self._lock:
+            data = self._read_dict("files")
+            if file_id not in data:
+                return False
+            data.pop(file_id)
+            self._write_dict("files", data)
+        return True
+
+    def create_run(
+        self,
+        project_id: str,
+        mode: str,
+        instructions: str,
+        user_notes: Optional[str] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> Run:
+        combined_metadata = metadata or {}
+        if user_notes:
+            combined_metadata = dict(combined_metadata)
+            combined_metadata["user_notes"] = user_notes
+        run = Run(
+            id=_new_id(),
+            project_id=project_id,
+            mode=mode,
+            instructions=instructions,
+            metadata=combined_metadata,
+        )
+        with self._lock:
+            data = self._read_dict("runs")
+            data[run.id] = _model_dict(run)
+            self._write_dict("runs", data)
+        return run
+
+    def get_run(self, run_id: str) -> Optional[Run]:
+        with self._lock:
+            data = self._read_dict("runs")
+            raw = data.get(run_id)
+        return Run(**raw) if raw else None
+
+    def list_runs(self, project_id: Optional[str] = None) -> List[Run]:
+        with self._lock:
+            records = self._read_dict("runs").values()
+        runs = [Run(**cast) for cast in records]
+        if project_id:
+            runs = [run for run in runs if run.project_id == project_id]
+        return runs
+
+    def update_run(
+        self,
+        run_id: str,
+        status: Optional[RunStatus] = None,
+        started_at: Optional[datetime] = None,
+        completed_at: Optional[datetime] = None,
+        error_message: Optional[str] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> Optional[Run]:
+        with self._lock:
+            data = self._read_dict("runs")
+            raw = data.get(run_id)
+            if not raw:
+                return None
+            run = Run(**raw)
+            updates: Dict[str, Any] = {}
+            if status is not None:
+                updates["status"] = status
+            if started_at is not None:
+                updates["started_at"] = started_at
+            if completed_at is not None:
+                updates["completed_at"] = completed_at
+            if metadata is not None:
+                updates["metadata"] = metadata
+            elif error_message is not None:
+                next_metadata = dict(run.metadata)
+                next_metadata["error_message"] = error_message
+                updates["metadata"] = next_metadata
+            updates["updated_at"] = datetime.utcnow()
+            run = run.copy(update=updates)
+            data[run_id] = _model_dict(run)
+            self._write_dict("runs", data)
+        return run
+
+    def update_run_status(
+        self,
+        run_id: str,
+        status: str,
+        error_message: Optional[str] = None,
+    ) -> Optional[Run]:
+        started_at = datetime.utcnow() if status == RunStatus.RUNNING.value else None
+        completed_at = datetime.utcnow() if status in (RunStatus.COMPLETED.value, RunStatus.FAILED.value) else None
+        return self.update_run(
+            run_id=run_id,
+            status=RunStatus(status),
+            started_at=started_at,
+            completed_at=completed_at,
+            error_message=error_message,
+        )
+
+    def merge_run_metadata(self, run_id: str, patch: Dict[str, Any]) -> Optional[Run]:
+        run = self.get_run(run_id)
+        if run is None:
+            return None
+
+        merged = dict(run.metadata)
+        merged.update(patch)
+        return self.update_run(run_id=run_id, metadata=merged)
+
+    def append_event(
+        self,
+        run_id: str,
+        project_id: str,
+        event_type: str,
+        payload: Optional[Dict[str, Any]] = None,
+    ) -> RunEvent:
+        event = RunEvent(
+            id=_new_id(),
+            run_id=run_id,
+            project_id=project_id,
+            type=EventType(event_type),
+            payload=payload or {},
+        )
+        with self._lock:
+            events = self._read_list("events")
+            events.append(_model_dict(event))
+            self._write_list("events", events)
+        return event
+
+    def list_events(self, run_id: Optional[str] = None, event_type: Optional[EventType] = None) -> List[RunEvent]:
+        with self._lock:
+            events = self._read_list("events")
+        parsed = [RunEvent(**event) for event in events]
+        if run_id:
+            parsed = [entry for entry in parsed if entry.run_id == run_id]
+        if event_type:
+            parsed = [entry for entry in parsed if entry.type == event_type]
+        return parsed
+
+    def add_graph_node(
+        self,
+        run_id: str,
+        label: str,
+        type: str,
+        data: Optional[Dict[str, Any]] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> GraphNode:
+        node = GraphNode(
+            id=_new_id(),
+            run_id=run_id,
+            label=label,
+            type=type,
+            data=data or {},
+            metadata=metadata or {},
+        )
+        with self._lock:
+            nodes = self._read_list("graph_nodes")
+            nodes.append(_model_dict(node))
+            self._write_list("graph_nodes", nodes)
+        return node
+
+    def add_graph_edge(
+        self,
+        run_id: str,
+        source: str,
+        target: str,
+        relation: str,
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> GraphEdge:
+        edge = GraphEdge(
+            id=_new_id(),
+            run_id=run_id,
+            source=source,
+            target=target,
+            relation=relation,
+            metadata=metadata or {},
+        )
+        with self._lock:
+            edges = self._read_list("graph_edges")
+            edges.append(_model_dict(edge))
+            self._write_list("graph_edges", edges)
+        return edge
+
+    def list_graph_nodes(self, run_id: Optional[str] = None) -> List[GraphNode]:
+        with self._lock:
+            nodes = self._read_list("graph_nodes")
+        parsed = [GraphNode(**entry) for entry in nodes]
+        if run_id:
+            parsed = [node for node in parsed if node.run_id == run_id]
+        return parsed
+
+    def list_graph_edges(self, run_id: Optional[str] = None) -> List[GraphEdge]:
+        with self._lock:
+            edges = self._read_list("graph_edges")
+        parsed = [GraphEdge(**entry) for entry in edges]
+        if run_id:
+            parsed = [edge for edge in parsed if edge.run_id == run_id]
+        return parsed
+
+    def save_result(self, result: UnderstandResult) -> UnderstandResult:
+        with self._lock:
+            data = self._read_dict("results")
+            data[result.run_id] = _model_dict(result)
+            self._write_dict("results", data)
+        return result
+
+    def get_result(self, run_id: str) -> Optional[UnderstandResult]:
+        with self._lock:
+            data = self._read_dict("results")
+            raw = data.get(run_id)
+        return UnderstandResult(**raw) if raw else None
+
+    def _next_snapshot_version(self, run_id: str) -> int:
+        pattern = f"{run_id}__*.json"
+        files = list(self.snapshots_dir.glob(pattern))
+        versions: List[int] = []
+        for path in files:
+            parts = path.stem.split("__")
+            if len(parts) != 2:
+                continue
+            suffix = parts[1]
+            if suffix.isdigit():
+                versions.append(int(suffix))
+        return max(versions, default=0) + 1
+
+    def save_graph_snapshot(self, snapshot: GraphSnapshot) -> GraphSnapshot:
+        with self._lock:
+            version = self._next_snapshot_version(snapshot.run_id)
+            snapshot = snapshot.copy(update={"version": version, "created_at": datetime.utcnow()})
+            target = self.snapshots_dir / f"{snapshot.run_id}__{snapshot.version}.json"
+            target.write_text(snapshot.json(), encoding="utf-8")
+        return snapshot
+
+    def list_graph_snapshots(self, run_id: str) -> List[GraphSnapshot]:
+        with self._lock:
+            files = sorted(self.snapshots_dir.glob(f"{run_id}__*.json"))
+        snapshots: List[GraphSnapshot] = []
+        for path in files:
+            snapshots.append(GraphSnapshot.parse_file(path))
+        return snapshots
+
+    def get_latest_graph_snapshot(self, run_id: str) -> Optional[GraphSnapshot]:
+        snapshots = self.list_graph_snapshots(run_id)
+        if not snapshots:
+            return None
+        return snapshots[-1]
+
+
+FileBackedStore = LocalStore
+
+
+===== FILE: apps/api/main.py =====
+from __future__ import annotations
+
+import asyncio
+import json
+import os
+import sys
+from datetime import datetime
+from pathlib import Path
+from typing import Any, AsyncIterator, Dict, Optional
+
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import StreamingResponse
+
+ROOT_DIR = Path(__file__).resolve().parents[2]
+if str(ROOT_DIR) not in sys.path:
+    sys.path.append(str(ROOT_DIR))
+
+from app.api_models import (  # noqa: E402
+    CodexChatStreamRequest,
+    CreateConnectionRequest,
+    CreateProjectRequest,
+    CreateRunRequest,
+    SubmitReviewRequest,
+    TriggerMigrationRequest,
+)
+from app.codex_chat import stream_codex_chat  # noqa: E402
+from app.runtime import EventHub  # noqa: E402
+
+try:  # noqa: E402
+    from app.models import (
+        EventType,
+        GraphSnapshot,
+        ReviewDecision,
+        ReviewType,
+        RunStatus,
+        UnderstandResult,
+    )
+    from app.store import FileBackedStore
+except ImportError:  # pragma: no cover - worker-owned files land later in the turn
+    FileBackedStore = None  # type: ignore[assignment]
+    EventType = None  # type: ignore[assignment]
+    GraphSnapshot = None  # type: ignore[assignment]
+    ReviewDecision = None  # type: ignore[assignment]
+    ReviewType = None  # type: ignore[assignment]
+    RunStatus = None  # type: ignore[assignment]
+    UnderstandResult = None  # type: ignore[assignment]
+
+try:  # noqa: E402
+    from services.orchestrator.workflow import run_understand_workflow
+except ImportError:  # pragma: no cover - worker-owned files land later in the turn
+    run_understand_workflow = None  # type: ignore[assignment]
+
+try:  # noqa: E402
+    from services.context_graph_builder import build_context_graph, propose_mapping_candidates
+    from services.crawlers import crawl_oracle_source, crawl_supabase_target
+except ImportError:  # pragma: no cover - worker-owned files land later in the turn
+    build_context_graph = None  # type: ignore[assignment]
+    propose_mapping_candidates = None  # type: ignore[assignment]
+    crawl_oracle_source = None  # type: ignore[assignment]
+    crawl_supabase_target = None  # type: ignore[assignment]
+
+try:  # noqa: E402
+    from services.migration.supabase import execute_supabase_migration
+except ImportError:  # pragma: no cover - worker-owned files land later in the turn
+    execute_supabase_migration = None  # type: ignore[assignment]
+
+
+def _default_data_dir() -> Path:
+    env_value = os.getenv("SEMANTIC_API_DATA_DIR") or os.getenv("CODEX_STORE_DIR")
+    if env_value:
+        return Path(env_value)
+    return Path(__file__).resolve().parent / ".data"
+
+
+app = FastAPI(title="Semantic Translation API")
+app.state.event_hub = EventHub()
+app.state.store = None
+
+REVIEW_STATUS_BY_TYPE = {
+    "crawl": "awaiting_crawl_review",
+    "reasoning": "awaiting_reasoning_review",
+    "mappings": "awaiting_mapping_review",
+}
+
+REVIEW_METADATA_KEYS = {
+    "crawl": "crawl_review",
+    "reasoning": "reasoning_review",
+    "mappings": "mapping_review",
+}
+
+
+@app.on_event("startup")
+def startup() -> None:
+    if FileBackedStore is None:
+        raise RuntimeError("FileBackedStore is unavailable; app.store failed to import.")
+
+    app.state.store = FileBackedStore(_default_data_dir())
+
+
+@app.get("/health")
+def health() -> Dict[str, str]:
+    return {"status": "ok"}
+
+
+@app.post("/codex/chat/stream")
+async def codex_chat_stream(payload: CodexChatStreamRequest) -> StreamingResponse:
+    async def stream() -> AsyncIterator[str]:
+        async for chunk in stream_codex_chat(
+            payload,
+            api_key=os.getenv("OPENAI_API_KEY"),
+            model=payload.model or os.getenv("OPENAI_CODEX_MODEL"),
+        ):
+            yield chunk
+
+    return StreamingResponse(
+        stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
+
+
+@app.post("/projects")
+def create_project(payload: CreateProjectRequest) -> Any:
+    project = app.state.store.create_project(
+        name=payload.name,
+        description=payload.description,
+    )
+    return project
+
+
+@app.get("/projects/{project_id}/connections")
+def list_project_connections(project_id: str) -> Any:
+    store = app.state.store
+    project = store.get_project(project_id)
+    if project is None:
+        raise HTTPException(status_code=404, detail="Project not found.")
+    return store.list_connections(project_id)
+
+
+@app.post("/projects/{project_id}/connections")
+def create_project_connection(project_id: str, payload: CreateConnectionRequest) -> Any:
+    store = app.state.store
+    project = store.get_project(project_id)
+    if project is None:
+        raise HTTPException(status_code=404, detail="Project not found.")
+
+    connection = store.create_connection(
+        project_id=project_id,
+        name=payload.name,
+        role=payload.role,
+        kind=payload.kind,
+        config=payload.config,
+        metadata=payload.metadata,
+    )
+    return connection
+
+
+@app.post("/projects/{project_id}/files")
+async def upload_project_file(project_id: str, request: Request) -> Any:
+    store = app.state.store
+    project = store.get_project(project_id)
+    if project is None:
+        raise HTTPException(status_code=404, detail="Project not found.")
+
+    filename = request.headers.get("x-filename")
+    if not filename:
+        raise HTTPException(status_code=400, detail="Missing x-filename header.")
+
+    content = await request.body()
+    if not content:
+        raise HTTPException(status_code=400, detail="Request body is empty.")
+
+    file_record = store.attach_file(
+        project_id=project_id,
+        filename=filename,
+        content_type=request.headers.get("content-type", "application/octet-stream"),
+        content=content,
+    )
+    return file_record
+
+
+@app.get("/projects/{project_id}/runs")
+def list_project_runs(project_id: str) -> Any:
+    store = app.state.store
+    project = store.get_project(project_id)
+    if project is None:
+        raise HTTPException(status_code=404, detail="Project not found.")
+    return store.list_runs(project_id)
+
+
+@app.post("/projects/{project_id}/runs")
+async def create_run(project_id: str, payload: CreateRunRequest) -> Any:
+    if payload.mode != "understand":
+        raise HTTPException(status_code=400, detail="Only 'understand' mode is supported.")
+
+    store = app.state.store
+    project = store.get_project(project_id)
+    if project is None:
+        raise HTTPException(status_code=404, detail="Project not found.")
+
+    run_metadata: Dict[str, Any] = {}
+    if payload.source_connection_id:
+        source_connection = store.get_connection(payload.source_connection_id)
+        if source_connection is None or source_connection.project_id != project_id:
+            raise HTTPException(status_code=404, detail="Source connection not found.")
+        run_metadata["source_connection_id"] = payload.source_connection_id
+
+    if payload.target_connection_id:
+        target_connection = store.get_connection(payload.target_connection_id)
+        if target_connection is None or target_connection.project_id != project_id:
+            raise HTTPException(status_code=404, detail="Target connection not found.")
+        run_metadata["target_connection_id"] = payload.target_connection_id
+
+    run = store.create_run(
+        project_id=project_id,
+        mode=payload.mode,
+        instructions=payload.instructions,
+        user_notes=payload.user_notes,
+        metadata=run_metadata,
+    )
+
+    created_event = store.append_event(
+        run_id=run.id,
+        project_id=project_id,
+        event_type="run_created",
+        payload={
+            "mode": payload.mode,
+            "source_connection_id": payload.source_connection_id,
+            "target_connection_id": payload.target_connection_id,
+        },
+    )
+    await _publish_event(created_event)
+
+    asyncio.create_task(
+        _execute_understand_run(
+            project_id=project_id,
+            run_id=run.id,
+            instructions=payload.instructions,
+            user_notes=payload.user_notes,
+        )
+    )
+
+    return run
+
+
+@app.post("/runs/{run_id}/reviews/{review_type}")
+async def submit_review(run_id: str, review_type: ReviewType, payload: SubmitReviewRequest) -> Any:
+    store = app.state.store
+    run = store.get_run(run_id)
+    if run is None:
+        raise HTTPException(status_code=404, detail="Run not found.")
+
+    expected_status = REVIEW_STATUS_BY_TYPE[review_type.value]
+    if run.status.value != expected_status:
+        raise HTTPException(
+            status_code=409,
+            detail="Run is not awaiting this review checkpoint.",
+        )
+
+    metadata_key = REVIEW_METADATA_KEYS[review_type.value]
+    review_payload = {
+        "decision": payload.decision.value,
+        "notes": payload.notes,
+        "submitted_at": _utcnow(),
+    }
+    reviews = dict(run.metadata.get("reviews", {}))
+    reviews[metadata_key] = review_payload
+    updated_run = store.merge_run_metadata(run_id, {"reviews": reviews})
+    if updated_run is None:
+        raise HTTPException(status_code=404, detail="Run not found.")
+
+    submitted_event = store.append_event(
+        run_id=run_id,
+        project_id=run.project_id,
+        event_type="review_submitted",
+        payload={"review_type": review_type.value, **review_payload},
+    )
+    await _publish_event(submitted_event)
+
+    if payload.decision == ReviewDecision.APPROVE:
+        if review_type == ReviewType.CRAWL:
+            store.update_run_status(run_id, status=RunStatus.RUNNING.value)
+            asyncio.create_task(_continue_after_crawl_review(run_id))
+        elif review_type == ReviewType.REASONING:
+            store.update_run_status(run_id, status=RunStatus.RUNNING.value)
+            asyncio.create_task(_continue_after_reasoning_review(run_id))
+        else:
+            store.update_run_status(run_id, status=RunStatus.MIGRATION_READY.value)
+            migration_ready_event = store.append_event(
+                run_id=run_id,
+                project_id=run.project_id,
+                event_type="migration_ready",
+                payload={"approved_review": review_type.value},
+            )
+            await _publish_event(migration_ready_event)
+
+    return store.get_run(run_id)
+
+
+@app.post("/runs/{run_id}/migrate")
+async def trigger_migration(run_id: str, payload: TriggerMigrationRequest) -> Any:
+    store = app.state.store
+    run = store.get_run(run_id)
+    if run is None:
+        raise HTTPException(status_code=404, detail="Run not found.")
+
+    if run.status != RunStatus.MIGRATION_READY:
+        raise HTTPException(status_code=409, detail="Run is not ready for migration.")
+
+    reviews = run.metadata.get("reviews", {})
+    required_reviews = [
+        "crawl_review",
+        "reasoning_review",
+        "mapping_review",
+    ]
+    missing = [
+        key for key in required_reviews if reviews.get(key, {}).get("decision") != ReviewDecision.APPROVE.value
+    ]
+    if missing:
+        raise HTTPException(
+            status_code=409,
+            detail="All review checkpoints must be approved before migration.",
+        )
+
+    snapshot = store.get_latest_graph_snapshot(run_id)
+    if snapshot is None:
+        raise HTTPException(status_code=409, detail="No graph snapshot is available for migration.")
+
+    store.update_run_status(run_id, status=RunStatus.MIGRATING.value)
+    if execute_supabase_migration is None:
+        raise HTTPException(status_code=500, detail="Migration executor import failed.")
+
+    store.merge_run_metadata(
+        run_id,
+        {
+            "migration_request": {
+                "notes": payload.notes,
+                "requested_at": _utcnow(),
+            }
+        },
+    )
+    await _publish_named_event(
+        run_id,
+        run.project_id,
+        "migration_triggered",
+        {"notes": payload.notes},
+    )
+
+    migration_result = await asyncio.to_thread(execute_supabase_migration, run, snapshot)
+    store.update_run_status(run_id, status=RunStatus.MIGRATION_COMPLETED.value)
+    await _publish_named_event(
+        run_id,
+        run.project_id,
+        "migration_completed",
+        migration_result,
+    )
+
+    return {
+        "run_id": run_id,
+        "status": RunStatus.MIGRATION_COMPLETED,
+        "detail": "Migration completed in mock mode.",
+        "result": migration_result,
+    }
+
+
+@app.get("/runs/{run_id}")
+def get_run(run_id: str) -> Any:
+    store = app.state.store
+    run = store.get_run(run_id)
+    if run is None:
+        raise HTTPException(status_code=404, detail="Run not found.")
+
+    result = store.get_result(run_id)
+    graph = store.get_latest_graph_snapshot(run_id)
+    events = store.list_events(run_id)
+
+    return {
+        "run": run,
+        "result": result,
+        "graph": graph,
+        "events": events,
+    }
+
+
+@app.get("/runs/{run_id}/events")
+async def stream_run_events(run_id: str) -> StreamingResponse:
+    store = app.state.store
+    run = store.get_run(run_id)
+    if run is None:
+        raise HTTPException(status_code=404, detail="Run not found.")
+
+    async def event_stream() -> AsyncIterator[str]:
+        historical_events = store.list_events(run_id)
+        for event in historical_events:
+            yield _format_sse_event(event)
+
+        async with app.state.event_hub.subscribe(run_id) as queue:
+            while True:
+                message = await queue.get()
+                yield message
+
+    return StreamingResponse(event_stream(), media_type="text/event-stream")
+
+
+async def _execute_understand_run(
+    project_id: str,
+    run_id: str,
+    instructions: str,
+    user_notes: Optional[str],
+) -> None:
+    store = app.state.store
+
+    store.update_run_status(run_id, status="running")
+    project = store.get_project(project_id)
+    files = store.list_files(project_id)
+    for file_record in files:
+        file_event = store.append_event(
+            run_id=run_id,
+            project_id=project_id,
+            event_type="file_attached",
+            payload={
+                "file_id": file_record.id,
+                "filename": file_record.filename,
+                "size_bytes": file_record.size_bytes,
+            },
+        )
+        await _publish_event(file_event)
+
+    try:
+        source_connection, target_connection = _resolve_run_connections(project_id=project_id, run_id=run_id)
+        if source_connection is None or target_connection is None:
+            raise RuntimeError("Runs require both source and target connections.")
+        if getattr(target_connection, "kind", None) is None or target_connection.kind.value not in ("supabase", "postgres"):
+            raise RuntimeError("Target connection must be Supabase or Postgres.")
+        if crawl_oracle_source is None or crawl_supabase_target is None or build_context_graph is None:
+            raise RuntimeError("crawler or context graph imports failed")
+
+        await _publish_named_event(run_id, project_id, "source_crawl_started", {"connection_id": source_connection.id})
+        source_profile = await asyncio.to_thread(crawl_oracle_source, source_connection, files)
+        await _publish_named_event(
+            run_id,
+            project_id,
+            "source_crawl_completed",
+            {"table_count": len(source_profile.get("tables", []))},
+        )
+
+        await _publish_named_event(run_id, project_id, "target_crawl_started", {"connection_id": target_connection.id})
+        try:
+            target_profile = await asyncio.to_thread(crawl_supabase_target, target_connection)
+        except Exception as exc:
+            await _publish_named_event(
+                run_id,
+                project_id,
+                "run_failed",
+                {"stage": "target_crawl", "error": str(exc)},
+            )
+            raise
+        await _publish_named_event(
+            run_id,
+            project_id,
+            "target_crawl_completed",
+            {
+                "table_count": len(target_profile.get("tables", [])),
+                "warning_count": len(target_profile.get("warnings", [])),
+            },
+        )
+
+        crawl_graph = await asyncio.to_thread(
+            build_context_graph,
+            run_id,
+            source_profile,
+            target_profile,
+        )
+        store.save_graph_snapshot(_build_graph_snapshot(run_id, crawl_graph))
+        await _record_graph_activity(run_id, project_id, crawl_graph)
+        await _publish_named_event(
+            run_id,
+            project_id,
+            "context_graph_built",
+            {
+                "node_count": len(crawl_graph.get("nodes", [])),
+                "edge_count": len(crawl_graph.get("edges", [])),
+            },
+        )
+
+        store.merge_run_metadata(
+            run_id,
+            {
+                "crawl_artifacts": {
+                    "source_profile": source_profile,
+                    "target_profile": target_profile,
+                }
+            },
+        )
+        store.update_run_status(run_id, status=RunStatus.AWAITING_CRAWL_REVIEW.value)
+        await _publish_named_event(run_id, project_id, "crawl_review_required", {"status": "awaiting_crawl_review"})
+    except Exception as exc:  # pragma: no cover - exercised in live integration
+        store.update_run_status(run_id, status="failed", error_message=str(exc))
+        failed_event = store.append_event(
+            run_id=run_id,
+            project_id=project_id,
+            event_type="run_failed",
+            payload={"error": str(exc)},
+        )
+        await _publish_event(failed_event)
+
+
+async def _publish_event(event: Any) -> None:
+    run_id = getattr(event, "run_id", None)
+    if not run_id:
+        return
+    await app.state.event_hub.publish(run_id, _format_sse_event(event))
+
+
+async def _publish_named_event(run_id: str, project_id: str, event_type: str, payload: Dict[str, Any]) -> None:
+    event = app.state.store.append_event(
+        run_id=run_id,
+        project_id=project_id,
+        event_type=event_type,
+        payload=payload,
+    )
+    await _publish_event(event)
+
+
+async def _continue_after_crawl_review(run_id: str) -> None:
+    store = app.state.store
+    run = store.get_run(run_id)
+    if run is None:
+        return
+
+    project = store.get_project(run.project_id)
+    files = store.list_files(run.project_id)
+    snapshot = store.get_latest_graph_snapshot(run_id)
+    if project is None or snapshot is None:
+        store.update_run_status(run_id, status=RunStatus.FAILED.value, error_message="Missing crawl artifacts.")
+        return
+
+    try:
+        if run_understand_workflow is None:
+            raise RuntimeError("orchestrator workflow import failed")
+
+        await _publish_named_event(
+            run_id,
+            run.project_id,
+            "semantic_reasoning_started",
+            {"model": os.getenv("OPENAI_CODEX_MODEL", "gpt-5-codex")},
+        )
+        workflow_output = await asyncio.to_thread(
+            run_understand_workflow,
+            project=project,
+            files=files,
+            instructions=run.instructions,
+            user_notes=run.metadata.get("user_notes"),
+            run_id=run_id,
+            graph_context={"nodes": [node.dict() for node in snapshot.nodes], "edges": [edge.dict() for edge in snapshot.edges]},
+        )
+
+        result = _coerce_result_payload(workflow_output)
+        reasoning_graph = result.get("graph", {})
+        merged_graph = _merge_graph_payloads(
+            {"nodes": [node.dict() for node in snapshot.nodes], "edges": [edge.dict() for edge in snapshot.edges]},
+            reasoning_graph,
+        )
+        result["graph"] = merged_graph
+
+        store.save_result(_build_understand_result(run_id, result))
+        store.save_graph_snapshot(_build_graph_snapshot(run_id, merged_graph))
+
+        await _record_reasoning_outputs(run_id, run.project_id, result, reasoning_graph)
+        await _publish_named_event(run_id, run.project_id, "semantic_reasoning_completed", {"status": "ok"})
+        store.update_run_status(run_id, status=RunStatus.AWAITING_REASONING_REVIEW.value)
+        await _publish_named_event(
+            run_id,
+            run.project_id,
+            "reasoning_review_required",
+            {"status": "awaiting_reasoning_review"},
+        )
+    except Exception as exc:  # pragma: no cover - exercised in live integration
+        store.update_run_status(run_id, status=RunStatus.FAILED.value, error_message=str(exc))
+        await _publish_named_event(run_id, run.project_id, "run_failed", {"error": str(exc)})
+
+
+async def _continue_after_reasoning_review(run_id: str) -> None:
+    store = app.state.store
+    run = store.get_run(run_id)
+    snapshot = store.get_latest_graph_snapshot(run_id)
+    if run is None or snapshot is None:
+        return
+
+    try:
+        if propose_mapping_candidates is None:
+            raise RuntimeError("mapping candidate builder import failed")
+
+        mapping_graph = await asyncio.to_thread(
+            propose_mapping_candidates,
+            run_id,
+            {"nodes": [node.dict() for node in snapshot.nodes], "edges": [edge.dict() for edge in snapshot.edges]},
+        )
+        merged_graph = _merge_graph_payloads(
+            {"nodes": [node.dict() for node in snapshot.nodes], "edges": [edge.dict() for edge in snapshot.edges]},
+            mapping_graph,
+        )
+        store.save_graph_snapshot(_build_graph_snapshot(run_id, merged_graph))
+        await _record_graph_activity(run_id, run.project_id, mapping_graph)
+        await _publish_named_event(
+            run_id,
+            run.project_id,
+            "mappings_proposed",
+            {"candidate_count": len(mapping_graph.get("nodes", []))},
+        )
+        store.update_run_status(run_id, status=RunStatus.AWAITING_MAPPING_REVIEW.value)
+        await _publish_named_event(
+            run_id,
+            run.project_id,
+            "mapping_review_required",
+            {"status": "awaiting_mapping_review"},
+        )
+    except Exception as exc:  # pragma: no cover - exercised in live integration
+        store.update_run_status(run_id, status=RunStatus.FAILED.value, error_message=str(exc))
+        await _publish_named_event(run_id, run.project_id, "run_failed", {"error": str(exc)})
+
+
+def _utcnow() -> str:
+    return datetime.utcnow().isoformat() + "Z"
+
+
+def _resolve_run_connections(project_id: str, run_id: str) -> tuple[Any, Any]:
+    store = app.state.store
+    run = store.get_run(run_id)
+    if run is None:
+        return None, None
+
+    source_id = run.metadata.get("source_connection_id")
+    target_id = run.metadata.get("target_connection_id")
+    source_connection = store.get_connection(source_id) if source_id else None
+    target_connection = store.get_connection(target_id) if target_id else None
+    if source_connection is not None and source_connection.project_id != project_id:
+        source_connection = None
+    if target_connection is not None and target_connection.project_id != project_id:
+        target_connection = None
+    return source_connection, target_connection
+
+
+async def _record_graph_activity(run_id: str, project_id: str, graph: Dict[str, Any]) -> None:
+    for node in graph.get("nodes", []):
+        await _publish_named_event(run_id, project_id, "node_created", node)
+    for edge in graph.get("edges", []):
+        await _publish_named_event(run_id, project_id, "edge_created", edge)
+
+
+async def _record_reasoning_outputs(
+    run_id: str,
+    project_id: str,
+    result: Dict[str, Any],
+    reasoning_graph: Dict[str, Any],
+) -> None:
+    summary = result.get("summary", "")
+    if summary:
+        await _publish_named_event(run_id, project_id, "reasoning_summary", {"summary": summary})
+
+    await _record_graph_activity(run_id, project_id, reasoning_graph)
+
+    for question in result.get("questions", []):
+        await _publish_named_event(run_id, project_id, "question_raised", question)
+
+    confidence = result.get("confidence", {})
+    if confidence:
+        await _publish_named_event(run_id, project_id, "confidence_changed", confidence)
+
+
+def _merge_graph_payloads(base_graph: Dict[str, Any], overlay_graph: Dict[str, Any]) -> Dict[str, Any]:
+    nodes: Dict[str, Dict[str, Any]] = {}
+    edges: Dict[str, Dict[str, Any]] = {}
+
+    for node in base_graph.get("nodes", []) + overlay_graph.get("nodes", []):
+        node_id = node.get("id") or node.get("label")
+        if not node_id:
+            continue
+        nodes[node_id] = node
+
+    for edge in base_graph.get("edges", []) + overlay_graph.get("edges", []):
+        key = "{source}:{target}:{relation}".format(
+            source=edge.get("source", ""),
+            target=edge.get("target", ""),
+            relation=edge.get("relation", ""),
+        )
+        edges[key] = edge
+
+    return {"nodes": list(nodes.values()), "edges": list(edges.values())}
+
+
+def _format_sse_event(event: Any) -> str:
+    if hasattr(event, "json"):
+        payload = json.loads(event.json())
+    elif hasattr(event, "model_dump_json"):
+        payload = json.loads(event.model_dump_json())
+    elif hasattr(event, "model_dump"):
+        payload = event.model_dump(mode="json")
+    elif hasattr(event, "dict"):
+        payload = event.dict()
+    else:
+        payload = dict(event)
+
+    event_type = payload.get("type", "message")
+    return "event: {event}\ndata: {data}\n\n".format(
+        event=str(event_type),
+        data=json.dumps(payload),
+    )
+
+
+def _coerce_result_payload(workflow_output: Any) -> Dict[str, Any]:
+    if hasattr(workflow_output, "model_dump"):
+        payload = workflow_output.model_dump()
+    elif hasattr(workflow_output, "dict"):
+        payload = workflow_output.dict()
+    elif isinstance(workflow_output, dict):
+        payload = workflow_output
+    else:
+        raise RuntimeError("Unexpected workflow output shape.")
+
+    required_keys = [
+        "entities",
+        "fields",
+        "inferred_meanings",
+        "questions",
+        "graph",
+        "confidence",
+        "summary",
+    ]
+    for key in required_keys:
+        if key == "graph":
+            payload.setdefault(key, {"nodes": [], "edges": []})
+        elif key == "confidence":
+            payload.setdefault(key, {"overall": 0, "by_entity": {}})
+        elif key == "summary":
+            payload.setdefault(key, "")
+        else:
+            payload.setdefault(key, [])
+
+    if not isinstance(payload.get("graph"), dict):
+        payload["graph"] = {"nodes": [], "edges": []}
+    payload["graph"].setdefault("nodes", [])
+    payload["graph"].setdefault("edges", [])
+
+    if not isinstance(payload.get("confidence"), dict):
+        payload["confidence"] = {"overall": 0, "by_entity": {}}
+    payload["confidence"].setdefault("overall", 0)
+    payload["confidence"].setdefault("by_entity", {})
+
+    if not isinstance(payload.get("summary"), str):
+        payload["summary"] = str(payload["summary"])
+
+    return payload
+
+
+def _build_graph_snapshot(run_id: str, graph: Dict[str, Any]) -> Any:
+    if GraphSnapshot is None:
+        raise RuntimeError("GraphSnapshot is unavailable.")
+
+    return GraphSnapshot(
+        run_id=run_id,
+        nodes=graph.get("nodes", []),
+        edges=graph.get("edges", []),
+    )
+
+
+def _build_understand_result(run_id: str, payload: Dict[str, Any]) -> Any:
+    if UnderstandResult is None:
+        raise RuntimeError("UnderstandResult is unavailable.")
+
+    result_payload = dict(payload)
+    graph_snapshot = _build_graph_snapshot(run_id, result_payload.pop("graph", {}))
+    result_payload["run_id"] = run_id
+    result_payload["graph_snapshot"] = graph_snapshot
+    return UnderstandResult(**result_payload)
+
+
+===== FILE: apps/api/requirements.txt =====
+fastapi
+uvicorn[standard]
+pydantic
+psycopg[binary]
+openai>=1.40.0
+
+
+===== FILE: services/context_graph_builder.py =====
+from __future__ import annotations
+
+import uuid
+from typing import Any, Dict, List
+
+
+def build_context_graph(run_id: str, source_profile: Dict[str, Any], target_profile: Dict[str, Any]) -> Dict[str, Any]:
+    nodes: List[Dict[str, Any]] = []
+    edges: List[Dict[str, Any]] = []
+
+    for profile in [source_profile, target_profile]:
+        database = profile.get("database", {})
+        database_id = _slug(database.get("name", "")) or uuid.uuid4().hex
+        nodes.append(
+            _node(
+                run_id=run_id,
+                node_id=database_id,
+                label=database.get("name", "database"),
+                type="database",
+                data={"kind": database.get("kind"), "role": database.get("role")},
+                metadata=database.get("config", {}),
+            )
+        )
+
+        for schema in profile.get("schemas", []):
+            schema_name = schema.get("name", "schema")
+            schema_label = "{db}.{schema}".format(
+                db=database.get("name", "database"),
+                schema=schema_name,
+            )
+            schema_id = _slug(schema_label) or uuid.uuid4().hex
+            nodes.append(
+                _node(
+                    run_id=run_id,
+                    node_id=schema_id,
+                    label=schema_label,
+                    type="schema",
+                    data={"role": database.get("role")},
+                    metadata={},
+                )
+            )
+            edges.append(_edge(run_id, database_id, schema_id, "contains"))
+
+            for table in _tables_for_schema(profile.get("tables", []), schema_name):
+                table_label = "{schema}.{table}".format(
+                    schema=schema_name,
+                    table=table.get("name", "table"),
+                )
+                table_id = _slug("{db}-{table}".format(db=database.get("name", ""), table=table_label)) or uuid.uuid4().hex
+                nodes.append(
+                    _node(
+                        run_id=run_id,
+                        node_id=table_id,
+                        label=table_label,
+                        type="table",
+                        data={"role": database.get("role")},
+                        metadata={"sample_source": table.get("sample_source")},
+                    )
+                )
+                edges.append(_edge(run_id, schema_id, table_id, "contains"))
+
+                for column in table.get("columns", []):
+                    column_label = "{table}.{column}".format(
+                        table=table_label,
+                        column=column.get("name", "column"),
+                    )
+                    column_id = _slug("{db}-{column}".format(db=database.get("name", ""), column=column_label)) or uuid.uuid4().hex
+                    nodes.append(
+                        _node(
+                            run_id=run_id,
+                            node_id=column_id,
+                            label=column_label,
+                            type="column",
+                            data={
+                                "role": database.get("role"),
+                                "data_type": column.get("type", "unknown"),
+                            },
+                            metadata={},
+                        )
+                    )
+                    edges.append(_edge(run_id, table_id, column_id, "contains"))
+
+    return {"nodes": _dedupe_nodes(nodes), "edges": _dedupe_edges(edges)}
+
+
+def propose_mapping_candidates(run_id: str, graph: Dict[str, Any]) -> Dict[str, Any]:
+    source_columns = [node for node in graph.get("nodes", []) if node.get("type") == "column" and node.get("data", {}).get("role") == "source"]
+    target_columns = [node for node in graph.get("nodes", []) if node.get("type") == "column" and node.get("data", {}).get("role") == "target"]
+
+    nodes: List[Dict[str, Any]] = []
+    edges: List[Dict[str, Any]] = []
+
+    target_by_slug = {_column_slug(node): node for node in target_columns}
+    for source_node in source_columns:
+        target_node = target_by_slug.get(_column_slug(source_node))
+        if target_node is None:
+            continue
+
+        mapping_label = "Map {source} -> {target}".format(
+            source=source_node["label"],
+            target=target_node["label"],
+        )
+        mapping_id = _slug(mapping_label) or uuid.uuid4().hex
+        nodes.append(
+            _node(
+                run_id=run_id,
+                node_id=mapping_id,
+                label=mapping_label,
+                type="mapping_candidate",
+                data={"confidence": 0.7},
+                metadata={"strategy": "normalized_label_match"},
+            )
+        )
+        edges.append(_edge(run_id, source_node["id"], mapping_id, "maps_to_candidate"))
+        edges.append(_edge(run_id, mapping_id, target_node["id"], "maps_to_candidate"))
+
+    return {"nodes": _dedupe_nodes(nodes), "edges": _dedupe_edges(edges)}
+
+
+def _column_slug(node: Dict[str, Any]) -> str:
+    label = node.get("label", "")
+    suffix = label.split(".")[-1]
+    return _slug(suffix)
+
+
+def _tables_for_schema(tables: List[Dict[str, Any]], schema_name: str) -> List[Dict[str, Any]]:
+    matched = [table for table in tables if table.get("schema", schema_name) == schema_name]
+    return matched
+
+
+def _node(run_id: str, node_id: str, label: str, type: str, data: Dict[str, Any], metadata: Dict[str, Any]) -> Dict[str, Any]:
+    return {
+        "id": node_id,
+        "run_id": run_id,
+        "label": label,
+        "type": type,
+        "data": data,
+        "metadata": metadata,
+    }
+
+
+def _edge(run_id: str, source: str, target: str, relation: str) -> Dict[str, Any]:
+    return {
+        "id": uuid.uuid4().hex,
+        "run_id": run_id,
+        "source": source,
+        "target": target,
+        "relation": relation,
+        "metadata": {},
+    }
+
+
+def _dedupe_nodes(nodes: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    deduped: Dict[str, Dict[str, Any]] = {}
+    for node in nodes:
+        deduped[node["id"]] = node
+    return list(deduped.values())
+
+
+def _dedupe_edges(edges: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    deduped: Dict[str, Dict[str, Any]] = {}
+    for edge in edges:
+        key = "{source}:{target}:{relation}".format(
+            source=edge["source"],
+            target=edge["target"],
+            relation=edge["relation"],
+        )
+        deduped[key] = edge
+    return list(deduped.values())
+
+
+def _slug(value: str) -> str:
+    sanitized = "".join(char.lower() if char.isalnum() else "-" for char in value)
+    parts = [part for part in sanitized.split("-") if part]
+    return "-".join(parts)
+
+
+===== FILE: services/crawlers/__init__.py =====
+from .oracle import crawl_oracle_source
+from .supabase import crawl_supabase_target
+
+__all__ = [
+    "crawl_oracle_source",
+    "crawl_supabase_target",
+]
+
+
+===== FILE: services/crawlers/oracle.py =====
+from __future__ import annotations
+
+from pathlib import Path
+from typing import Any, Dict, Iterable, List
+
+
+def crawl_oracle_source(connection: Any, files: Iterable[Any]) -> Dict[str, Any]:
+    config = getattr(connection, "config", {}) or {}
+    metadata = getattr(connection, "metadata", {}) or {}
+    schemas = _schema_entries(config=config, fallback_name="oracle_source")
+    default_schema = schemas[0]["name"]
+    tables = _tables_from_files(files, default_schema=default_schema)
+
+    return {
+        "database": {
+            "name": getattr(connection, "name", "Oracle Source"),
+            "kind": "oracle",
+            "role": "source",
+            "config": _safe_connection_summary(config),
+            "metadata": metadata,
+        },
+        "schemas": schemas,
+        "tables": tables,
+    }
+
+
+def _tables_from_files(files: Iterable[Any], default_schema: str) -> List[Dict[str, Any]]:
+    tables: List[Dict[str, Any]] = []
+    for file_record in files:
+        metadata = getattr(file_record, "metadata", {}) or {}
+        path_value = metadata.get("path")
+        filename = getattr(file_record, "filename", "")
+        table_name = Path(filename).stem or getattr(file_record, "name", "source_table")
+        columns = _read_preview_columns(path_value)
+        tables.append(
+            {
+                "name": table_name,
+                "schema": default_schema,
+                "columns": columns,
+                "sample_source": filename,
+            }
+        )
+    return tables
+
+
+def _read_preview_columns(path_value: str | None) -> List[Dict[str, Any]]:
+    if not path_value:
+        return []
+
+    path = Path(path_value)
+    if not path.exists():
+        return []
+
+    try:
+        first_line = path.read_text(encoding="utf-8", errors="replace").splitlines()[0]
+    except IndexError:
+        return []
+
+    separator = "," if "," in first_line else "\t" if "\t" in first_line else None
+    if separator is None:
+        return []
+
+    columns = []
+    for raw_name in first_line.split(separator):
+        name = raw_name.strip().strip('"')
+        if not name:
+            continue
+        columns.append({"name": name, "type": "unknown"})
+    return columns
+
+
+def _schema_entries(config: Dict[str, Any], fallback_name: str) -> List[Dict[str, Any]]:
+    raw_schemas = config.get("schemas")
+    if isinstance(raw_schemas, list) and raw_schemas:
+        return [{"name": str(item)} for item in raw_schemas]
+    return [{"name": fallback_name}]
+
+
+def _safe_connection_summary(config: Dict[str, Any]) -> Dict[str, Any]:
+    allowed = ["dsn", "host", "port", "service_name", "database", "schema"]
+    return {key: config[key] for key in allowed if key in config}
+
+
+===== FILE: services/crawlers/supabase.py =====
+from __future__ import annotations
+
+import os
+from pathlib import Path
+from typing import Any, Dict, List, Optional
+from ipaddress import ip_address
+
+from dotenv import dotenv_values
+from psycopg import connect, sql
+from psycopg.rows import dict_row
+
+
+def crawl_supabase_target(connection: Any) -> Dict[str, Any]:
+    config = _resolved_connection_config(getattr(connection, "config", {}) or {})
+    metadata = getattr(connection, "metadata", {}) or {}
+    warnings: List[Dict[str, Any]] = []
+
+    with connect(
+        host=config["host"],
+        port=config["port"],
+        dbname=config["dbname"],
+        user=config["user"],
+        password=config["password"],
+        sslmode=config["sslmode"],
+        connect_timeout=5,
+        row_factory=dict_row,
+    ) as db:
+        schemas = _load_schemas(db, configured_schemas=config.get("schemas"))
+        tables = _load_tables(db, schemas=schemas)
+        _attach_columns(db, tables=tables)
+        _attach_sample_rows(db, tables=tables, row_limit=3, warnings=warnings)
+
+    return {
+        "database": {
+            "name": getattr(connection, "name", "Supabase Target"),
+            "kind": "supabase",
+            "role": "target",
+            "config": _safe_connection_summary(config),
+            "metadata": metadata,
+        },
+        "schemas": [{"name": schema_name} for schema_name in schemas],
+        "tables": tables,
+        "warnings": warnings,
+    }
+
+
+def _resolved_connection_config(config: Dict[str, Any]) -> Dict[str, Any]:
+    env = _load_repo_env()
+
+    def pick(*keys: str, default: Any = None) -> Any:
+        for key in keys:
+            value = config.get(key)
+            if value not in (None, ""):
+                return value
+            env_value = os.getenv(key) or env.get(key)
+            if env_value not in (None, ""):
+                return env_value
+        return default
+
+    resolved = {
+        "host": pick("host", "POSTGRES_HOST"),
+        "port": int(pick("port", "POSTGRES_PORT", default=5432)),
+        "dbname": pick("database", "dbname", "POSTGRES_DB"),
+        "user": pick("user", "POSTGRES_USER"),
+        "password": pick("password", "POSTGRES_PASSWORD"),
+        "sslmode": pick("sslmode", "POSTGRES_SSLMODE", default=_default_sslmode(pick("host", "POSTGRES_HOST"))),
+        "schemas": _configured_schemas(config),
+    }
+
+    missing = [key for key in ["host", "dbname", "user", "password"] if not resolved[key]]
+    if missing:
+        raise RuntimeError(
+            "Missing Postgres connection config values: {keys}".format(keys=", ".join(sorted(missing)))
+        )
+
+    return resolved
+
+
+def _load_schemas(db: Any, configured_schemas: Optional[List[str]]) -> List[str]:
+    if configured_schemas:
+        return [str(item) for item in configured_schemas]
+
+    with db.cursor() as cur:
+        cur.execute(
+            """
+            select schema_name
+            from information_schema.schemata
+            where schema_name not in ('pg_catalog', 'information_schema')
+              and schema_name not in ('auth', 'extensions', 'pgbouncer', 'realtime', 'storage', 'supabase_functions')
+              and schema_name not like 'pg_toast%%'
+              and schema_name not like 'pg_temp%%'
+            order by schema_name
+            """
+        )
+        rows = cur.fetchall()
+    return [row["schema_name"] for row in rows]
+
+
+def _load_tables(db: Any, schemas: List[str]) -> List[Dict[str, Any]]:
+    with db.cursor() as cur:
+        cur.execute(
+            """
+            select
+              t.table_schema,
+              t.table_name,
+              coalesce(c.reltuples::bigint, 0) as estimated_rows
+            from information_schema.tables t
+            left join pg_class c on c.relname = t.table_name
+            left join pg_namespace n on n.oid = c.relnamespace and n.nspname = t.table_schema
+            where t.table_type = 'BASE TABLE'
+              and t.table_schema = any(%s)
+            order by t.table_schema, t.table_name
+            """,
+            (schemas,),
+        )
+        rows = cur.fetchall()
+
+    return [
+        {
+            "name": row["table_name"],
+            "schema": row["table_schema"],
+            "estimated_rows": int(row["estimated_rows"] or 0),
+            "columns": [],
+            "sample_rows": [],
+        }
+        for row in rows
+    ]
+
+
+def _attach_columns(db: Any, tables: List[Dict[str, Any]]) -> None:
+    if not tables:
+        return
+
+    schemas = sorted({table["schema"] for table in tables})
+    with db.cursor() as cur:
+        cur.execute(
+            """
+            select
+              table_schema,
+              table_name,
+              column_name,
+              data_type,
+              is_nullable
+            from information_schema.columns
+            where table_schema = any(%s)
+            order by table_schema, table_name, ordinal_position
+            """,
+            (schemas,),
+        )
+        rows = cur.fetchall()
+
+    table_index = {
+        (table["schema"], table["name"]): table
+        for table in tables
+    }
+    for row in rows:
+        key = (row["table_schema"], row["table_name"])
+        table = table_index.get(key)
+        if table is None:
+            continue
+        table["columns"].append(
+            {
+                "name": row["column_name"],
+                "type": row["data_type"],
+                "nullable": row["is_nullable"] == "YES",
+            }
+        )
+
+
+def _attach_sample_rows(db: Any, tables: List[Dict[str, Any]], row_limit: int, warnings: List[Dict[str, Any]]) -> None:
+    for table in tables:
+        identifier = sql.Identifier(table["schema"], table["name"])
+        query = sql.SQL("select * from {} limit {}").format(
+            identifier,
+            sql.Literal(row_limit),
+        )
+        try:
+            with db.cursor() as cur:
+                cur.execute(query)
+                rows = cur.fetchall()
+        except Exception as exc:
+            table["sample_rows"] = []
+            warnings.append(
+                {
+                    "table": "{schema}.{table}".format(schema=table["schema"], table=table["name"]),
+                    "stage": "sample_rows",
+                    "message": str(exc),
+                }
+            )
+            continue
+
+        table["sample_rows"] = [dict(row) for row in rows]
+
+
+def _load_repo_env() -> Dict[str, str]:
+    root = Path(__file__).resolve().parents[2]
+    env_path = root / ".env"
+    if not env_path.exists():
+        return {}
+
+    return {
+        key: value
+        for key, value in dotenv_values(env_path).items()
+        if key and value is not None
+    }
+
+
+def _split_csv(value: Any) -> List[str]:
+    if isinstance(value, list):
+        return [str(item) for item in value if str(item).strip()]
+    if not value:
+        return []
+    return [part.strip() for part in str(value).split(",") if part.strip()]
+
+
+def _configured_schemas(config: Dict[str, Any]) -> Optional[List[str]]:
+    if "schemas" in config:
+        value = _split_csv(config.get("schemas"))
+        return value or None
+    if "schema" in config:
+        value = _split_csv(config.get("schema"))
+        return value or None
+    return None
+
+
+def _default_sslmode(host: Any) -> str:
+    if not host:
+        return "require"
+
+    host_value = str(host)
+    if host_value in ("localhost", "127.0.0.1"):
+        return "prefer"
+
+    try:
+        parsed = ip_address(host_value)
+        if parsed.is_private or parsed.is_loopback:
+            return "prefer"
+    except ValueError:
+        pass
+
+    return "require"
+
+
+def _safe_connection_summary(config: Dict[str, Any]) -> Dict[str, Any]:
+    allowed = ["host", "port", "dbname", "sslmode", "schemas"]
+    return {key: config[key] for key in allowed if key in config}
+
+
+===== FILE: services/migration/supabase.py =====
+from __future__ import annotations
+
+from typing import Any, Dict
+
+
+def execute_supabase_migration(run: Any, graph_snapshot: Any) -> Dict[str, Any]:
+    mapping_nodes = [
+        node for node in getattr(graph_snapshot, "nodes", [])
+        if getattr(node, "type", "") == "mapping_candidate"
+    ]
+    return {
+        "mode": "mock",
+        "status": "completed",
+        "mapping_count": len(mapping_nodes),
+        "records_written": 0,
+    }
+
+
+===== FILE: services/orchestrator/README.md =====
+Codex-backed orchestration layer for semantic translation workflows.
+
+Current implementation:
+
+- one workflow entrypoint: `run_understand_workflow`
+- OpenAI Responses API call with structured JSON output
+- file-context prompt assembly from uploaded project files
+- graph/result normalization for the API layer
+
+LangGraph is intentionally not in the critical path for this first backend slice. The workflow
+boundary is set up so LangGraph can be introduced behind the same interface later.
+
+
+===== FILE: services/orchestrator/__init__.py =====
+from .workflow import run_understand_workflow
+
+__all__ = ["run_understand_workflow"]
+
+
+===== FILE: services/orchestrator/main.py =====
+def main() -> None:
+    print("LangGraph orchestrator shell booted")
+
+
+if __name__ == "__main__":
+    main()
+
+
+===== FILE: services/orchestrator/requirements.txt =====
+langgraph
+langchain
+pydantic
+
+
+===== FILE: services/orchestrator/workflow.py =====
+from __future__ import annotations
+
+import json
+import os
+import uuid
+from pathlib import Path
+from typing import Any, Dict, Iterable, List, Optional
+from urllib import error, request
+
+
+SYSTEM_PROMPT = """
+You are Codex operating in Understand Mode for enterprise ontology migration after an acquisition.
+Analyze uploaded schema and sample data context to infer business meaning, identify entities and
+fields, draft a provisional semantic context graph, and generate clarification questions for
+employees who understand the source systems. Return only structured JSON that matches the provided
+schema.
+""".strip()
+
+
+UNDERSTAND_SCHEMA: Dict[str, Any] = {
+    "type": "object",
+    "additionalProperties": False,
+    "properties": {
+        "entities": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "additionalProperties": False,
+                "properties": {
+                    "name": {"type": "string"},
+                    "description": {"type": ["string", "null"]},
+                    "confidence": {"type": ["number", "null"]},
+                    "metadata": {
+                        "type": "object",
+                        "additionalProperties": False,
+                        "properties": {},
+                    },
+                },
+                "required": ["name", "description", "confidence", "metadata"],
+            },
+        },
+        "fields": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "additionalProperties": False,
+                "properties": {
+                    "name": {"type": "string"},
+                    "entity": {"type": ["string", "null"]},
+                    "semantic_type": {"type": ["string", "null"]},
+                    "description": {"type": ["string", "null"]},
+                    "confidence": {"type": ["number", "null"]},
+                },
+                "required": ["name", "entity", "semantic_type", "description", "confidence"],
+            },
+        },
+        "inferred_meanings": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "additionalProperties": False,
+                "properties": {
+                    "subject": {"type": "string"},
+                    "meaning": {"type": "string"},
+                    "confidence": {"type": ["number", "null"]},
+                },
+                "required": ["subject", "meaning", "confidence"],
+            },
+        },
+        "questions": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "additionalProperties": False,
+                "properties": {
+                    "prompt": {"type": "string"},
+                    "context": {"type": ["string", "null"]},
+                    "severity": {"type": ["string", "null"]},
+                },
+                "required": ["prompt", "context", "severity"],
+            },
+        },
+        "graph": {
+            "type": "object",
+            "additionalProperties": False,
+            "properties": {
+                "nodes": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "additionalProperties": False,
+                        "properties": {
+                            "label": {"type": "string"},
+                            "type": {"type": "string"},
+                            "data": {
+                                "type": "object",
+                                "additionalProperties": False,
+                                "properties": {},
+                            },
+                            "metadata": {
+                                "type": "object",
+                                "additionalProperties": False,
+                                "properties": {},
+                            },
+                        },
+                        "required": ["label", "type", "data", "metadata"],
+                    },
+                },
+                "edges": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "additionalProperties": False,
+                        "properties": {
+                            "source": {"type": "string"},
+                            "target": {"type": "string"},
+                            "relation": {"type": "string"},
+                            "metadata": {
+                                "type": "object",
+                                "additionalProperties": False,
+                                "properties": {},
+                            },
+                        },
+                        "required": ["source", "target", "relation", "metadata"],
+                    },
+                },
+            },
+            "required": ["nodes", "edges"],
+        },
+        "confidence": {
+            "type": "object",
+            "additionalProperties": False,
+            "properties": {
+                "overall": {"type": "number"},
+                "by_entity": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "additionalProperties": False,
+                        "properties": {
+                            "entity": {"type": "string"},
+                            "confidence": {"type": "number"},
+                        },
+                        "required": ["entity", "confidence"],
+                    },
+                },
+            },
+            "required": ["overall", "by_entity"],
+        },
+        "summary": {"type": "string"},
+    },
+    "required": [
+        "entities",
+        "fields",
+        "inferred_meanings",
+        "questions",
+        "graph",
+        "confidence",
+        "summary",
+    ],
+}
+
+
+def run_understand_workflow(
+    project: Any,
+    files: Iterable[Any],
+    instructions: str,
+    user_notes: Optional[str] = None,
+    run_id: Optional[str] = None,
+    graph_context: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        raise RuntimeError("OPENAI_API_KEY is not set.")
+
+    payload = {
+        "model": os.getenv("OPENAI_CODEX_MODEL", "gpt-5-codex"),
+        "instructions": SYSTEM_PROMPT,
+        "input": _build_input_text(
+            project=project,
+            files=files,
+            instructions=instructions,
+            user_notes=user_notes,
+            graph_context=graph_context,
+        ),
+        "text": {
+            "format": {
+                "type": "json_schema",
+                "name": "understand_mode_result",
+                "schema": UNDERSTAND_SCHEMA,
+                "strict": True,
+            }
+        },
+    }
+
+    raw_response = _create_response(payload, api_key=api_key)
+    parsed = _extract_json_payload(raw_response)
+    return _normalize_result(parsed, run_id=run_id)
+
+
+def _build_input_text(
+    project: Any,
+    files: Iterable[Any],
+    instructions: str,
+    user_notes: Optional[str],
+    graph_context: Optional[Dict[str, Any]],
+) -> str:
+    sections: List[str] = []
+    if project is not None:
+        sections.append(
+            "Project\nName: {name}\nDescription: {description}".format(
+                name=getattr(project, "name", "Untitled project"),
+                description=getattr(project, "description", "") or "",
+            )
+        )
+
+    sections.append("Operator Instructions\n{instructions}".format(instructions=instructions.strip()))
+    if user_notes:
+        sections.append("User Notes\n{notes}".format(notes=user_notes.strip()))
+
+    file_sections: List[str] = []
+    for file_record in files:
+        file_sections.append(_summarize_file(file_record))
+
+    if file_sections:
+        sections.append("Attached Files\n{files}".format(files="\n\n".join(file_sections)))
+
+    if graph_context:
+        sections.append(
+            "Context Graph Evidence\n{graph}".format(
+                graph=json.dumps(graph_context, indent=2, sort_keys=True)[:12000]
+            )
+        )
+
+    sections.append(
+        "Task\nInfer business entities, field meanings, a provisional semantic graph, employee"
+        " clarification questions, and a concise reasoning summary."
+    )
+    return "\n\n".join(sections)
+
+
+def _summarize_file(file_record: Any) -> str:
+    metadata = getattr(file_record, "metadata", {}) or {}
+    file_path = metadata.get("path")
+    snippet = ""
+
+    if file_path:
+        path = Path(file_path)
+        if path.exists():
+            try:
+                raw = path.read_text(encoding="utf-8")
+                snippet = raw[:8000]
+            except UnicodeDecodeError:
+                snippet = path.read_bytes()[:2048].decode("utf-8", errors="replace")
+
+    if not snippet:
+        snippet = "No readable file contents were available."
+
+    return (
+        "File: {name}\nFilename: {filename}\nSize: {size}\nContent Preview:\n{snippet}".format(
+            name=getattr(file_record, "name", ""),
+            filename=getattr(file_record, "filename", ""),
+            size=getattr(file_record, "size_bytes", 0),
+            snippet=snippet,
+        )
+    )
+
+
+def _create_response(payload: Dict[str, Any], api_key: str) -> Dict[str, Any]:
+    base_url = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1")
+    url = "{base}/responses".format(base=base_url.rstrip("/"))
+    req = request.Request(
+        url=url,
+        data=json.dumps(payload).encode("utf-8"),
+        headers={
+            "Authorization": "Bearer {token}".format(token=api_key),
+            "Content-Type": "application/json",
+        },
+        method="POST",
+    )
+
+    try:
+        with request.urlopen(req, timeout=120) as response:
+            body = response.read().decode("utf-8")
+    except error.HTTPError as exc:
+        body = exc.read().decode("utf-8", errors="replace")
+        raise RuntimeError("OpenAI Responses API error: {status} {body}".format(status=exc.code, body=body))
+    except error.URLError as exc:
+        raise RuntimeError("OpenAI Responses API request failed: {reason}".format(reason=exc.reason))
+
+    return json.loads(body)
+
+
+def _extract_json_payload(response_json: Dict[str, Any]) -> Dict[str, Any]:
+    output_text = response_json.get("output_text")
+    if isinstance(output_text, str) and output_text.strip():
+        return _loads_json(output_text)
+
+    for output_item in response_json.get("output", []):
+        for content_item in output_item.get("content", []):
+            if isinstance(content_item.get("text"), str):
+                return _loads_json(content_item["text"])
+            if isinstance(content_item.get("json"), dict):
+                return content_item["json"]
+
+    raise RuntimeError("Could not find structured JSON in the OpenAI response.")
+
+
+def _loads_json(value: str) -> Dict[str, Any]:
+    candidate = value.strip()
+    if candidate.startswith("```"):
+        candidate = candidate.strip("`")
+        if candidate.startswith("json"):
+            candidate = candidate[4:].strip()
+    parsed = json.loads(candidate)
+    if not isinstance(parsed, dict):
+        raise RuntimeError("Structured output was not a JSON object.")
+    return parsed
+
+
+def _normalize_result(payload: Dict[str, Any], run_id: Optional[str]) -> Dict[str, Any]:
+    normalized = dict(payload)
+    normalized.setdefault("entities", [])
+    normalized.setdefault("fields", [])
+    normalized.setdefault("inferred_meanings", [])
+    normalized.setdefault("questions", [])
+    normalized.setdefault("summary", "")
+
+    graph = normalized.setdefault("graph", {})
+    graph.setdefault("nodes", [])
+    graph.setdefault("edges", [])
+
+    confidence = normalized.setdefault("confidence", {})
+    confidence.setdefault("overall", 0)
+    confidence.setdefault("by_entity", {})
+    if isinstance(confidence.get("by_entity"), list):
+        confidence["by_entity"] = {
+            item.get("entity", ""): item.get("confidence", 0)
+            for item in confidence["by_entity"]
+            if item.get("entity")
+        }
+
+    node_map: Dict[str, str] = {}
+    for node in graph["nodes"]:
+        label = node.get("label", "").strip()
+        node_id = _slug(label) or uuid.uuid4().hex
+        node["id"] = node_id
+        if run_id:
+            node["run_id"] = run_id
+        node.setdefault("data", {})
+        node.setdefault("metadata", {})
+        node_map[label] = node_id
+
+    for edge in graph["edges"]:
+        source_label = edge.get("source", "").strip()
+        target_label = edge.get("target", "").strip()
+        edge["source"] = node_map.get(source_label, source_label)
+        edge["target"] = node_map.get(target_label, target_label)
+        edge["id"] = uuid.uuid4().hex
+        if run_id:
+            edge["run_id"] = run_id
+        edge.setdefault("metadata", {})
+
+    return normalized
+
+
+def _slug(value: str) -> str:
+    sanitized = "".join(char.lower() if char.isalnum() else "-" for char in value)
+    parts = [part for part in sanitized.split("-") if part]
+    return "-".join(parts)

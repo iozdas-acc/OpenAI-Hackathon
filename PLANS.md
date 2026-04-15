@@ -2,7 +2,7 @@
 
 ## Current milestone
 
-Stage 0: scaffold the hackathon repo
+Stage 1: Oracle-to-Supabase semantic mapping golden path
 
 ## Planning mode
 
@@ -20,27 +20,51 @@ Hackathon-day runbook:
 
 ## Tasks
 
-- [x] Create repo-managed skill base
-- [x] Add local Codex skill sync script
-- [x] Initialize git remote
-- [x] Add Stage 0 repo docs and instructions
-- [x] Scaffold frontend shell
-- [x] Scaffold API shell
-- [x] Scaffold orchestrator shell
-- [x] Scaffold context graph shell
-- [x] Install bootstrap dependencies
-- [x] Add local startup scripts
-- [x] Add environment templates
+- [x] Complete Stage 0 repo and service scaffolding
+- [x] Write Codex Understand Mode backend design spec
+- [x] Add shared run, event, graph, and result contracts
+- [x] Add local persistence for projects, files, runs, events, and graph snapshots
+- [x] Add API endpoints for projects, uploads, runs, run history, and SSE events
+- [x] Implement Codex-backed Understand Mode orchestration
+- [x] Persist structured Understand outputs by project and run
+- [x] Document the startup path and required environment for Codex-backed runs
+- [ ] Add live source connection support for Oracle and target connection support for Supabase/Postgres
+- [ ] Crawl database metadata, schemas, tables, columns, constraints, and join clues
+- [ ] Profile sampled data for null patterns, value distributions, enum-like fields, and representative examples
+- [ ] Add human review checkpoint after both databases are crawled and initially mapped
+- [ ] Build a deterministic context graph from database evidence
+- [ ] Add Codex semantic reasoning over graph nodes and edges to infer business meaning
+- [ ] Add human review checkpoint after Codex reasons over the context graph
+- [ ] Propose semantic matches from the Oracle source model onto the Supabase target model
+- [ ] Add human review checkpoint for candidate mappings before any migration action
+- [ ] Persist approved semantic mappings for later migration planning
+- [ ] Add a final operator-controlled migrate action that runs only after mapping approval
 
 ## Exit criteria
 
-- Repo structure exists
-- Dependencies are installed
-- Frontend shell is installed and lint-validated
-- API shell runs
-- Orchestrator shell runs
-- Context graph shell runs
-- Startup instructions are documented
+- API starts locally
+- Project creation works
+- File upload works
+- Understand runs can be created
+- Run events stream to the client
+- Structured Understand output persists by run
+- Run history can be queried by project
+- Oracle source and Supabase target databases can be explored through a backend connection contract
+- A run can produce a context graph with nodes and edges derived from real database evidence
+- Operators can review the crawled structure of both databases before semantic reasoning proceeds
+- Codex can explain what tables, columns, codes, and relationships likely mean in business terms
+- Operators can review and acknowledge Codex reasoning over the context graph before mapping proceeds
+- The system can propose semantic matches from Oracle structures onto Supabase structures with confidence and supporting evidence
+- A human can review and approve or reject candidate mappings
+- Migration to Supabase can only be triggered by an explicit human action after mapping approval
+
+## Product direction for this milestone
+
+Build a backend that can connect to a live Oracle source database and a Supabase/Postgres target database, crawl their structure and representative data, and turn that evidence into a context graph. LangGraph is the orchestration backbone for the workflow, but it does not create the graph automatically; the backend must build the graph and then use Codex to reason semantically over the nodes and edges.
+
+The graph should capture database structure and evidence first, then semantic hypotheses second. That means deterministic graph construction from schemas, tables, columns, keys, sample values, and inferred relationships, followed by Codex-generated interpretations such as likely business entities, enum meanings, overloaded fields, hidden joins, and same-concept candidates across systems.
+
+Human review is required at multiple checkpoints. First, operators inspect the crawled Oracle source and Supabase target structures after the system maps what each database appears to contain. Second, operators review the context graph after Codex has reasoned over the nodes and edges and added semantic interpretations. Third, operators review candidate Oracle-to-Supabase mappings and explicitly approve or reject them. Only after those approvals should the system expose a button to migrate into Supabase.
 
 ## Judging checklist
 
@@ -77,4 +101,8 @@ For the final demo, show both the outcome and the workflow:
 
 ## Next milestone
 
-Stage 1: semantic mapping golden path
+Stage 2: UI for live context graph updates and operator-facing review workflows
+
+## Deferred
+
+- Migration planning stub after approved mappings

@@ -57,6 +57,28 @@ Postgres:
 docker compose up -d postgres
 ```
 
+## Ralph Backend Review Loop
+
+Run the backend Ralph loop in the foreground:
+
+```bash
+scripts/ralph-backend-loop.sh --interval-minutes 15
+```
+
+Run a single review cycle:
+
+```bash
+scripts/ralph-backend-loop.sh --once
+```
+
+Start it in the background:
+
+```bash
+scripts/ralph-backend-loop.sh --background --interval-minutes 15
+```
+
+Artifacts are written under `reports/ralph-backend/`.
+
 ## Skills
 
 Repo-managed skills live under `skills/`.

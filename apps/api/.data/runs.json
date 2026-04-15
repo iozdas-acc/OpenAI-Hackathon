@@ -1,0 +1,1604 @@
+{
+  "f769e49cb6564f85946994540eb71dfe": {
+    "id": "f769e49cb6564f85946994540eb71dfe",
+    "project_id": "5df7b9b89a664d8e8326004befd993df",
+    "mode": "understand",
+    "instructions": "test",
+    "status": "running",
+    "metadata": {
+      "source_connection_id": "18a4bd13e3fe49b7820c28096a0729c3",
+      "target_connection_id": "85f0a6b9b24641c39515ad4e87807b91",
+      "reviews": {
+        "crawl_review": {
+          "decision": "approve",
+          "notes": "ok",
+          "submitted_at": "2026-04-15T12:25:10.994200Z"
+        },
+        "reasoning_review": {
+          "decision": "approve",
+          "notes": "ok",
+          "submitted_at": "2026-04-15T12:25:11.002187Z"
+        },
+        "mapping_review": {
+          "decision": "approve",
+          "notes": "ok",
+          "submitted_at": "2026-04-15T12:25:11.008454Z"
+        }
+      },
+      "migration_request": {
+        "notes": "ship it",
+        "requested_at": "2026-04-15T12:25:11.016030Z"
+      }
+    },
+    "created_at": "2026-04-15T12:25:10.985155",
+    "updated_at": "2026-04-15T12:25:11.020732",
+    "started_at": "2026-04-15T12:25:11.020482",
+    "completed_at": null
+  },
+  "4bc7780acbcc4e5d80415e9c3b2925a6": {
+    "id": "4bc7780acbcc4e5d80415e9c3b2925a6",
+    "project_id": "578423d23a4049fd89e83db9d3f95abb",
+    "mode": "understand",
+    "instructions": "reason about the database",
+    "status": "failed",
+    "metadata": {
+      "source_connection_id": "2239c52a5e00452b94badc1f87abc734",
+      "target_connection_id": "f6f4dfe73f704fc08c2bd5012fd8beab",
+      "crawl_artifacts": {
+        "source_profile": {
+          "database": {
+            "name": "Oracle Source",
+            "kind": "oracle",
+            "role": "source",
+            "config": {},
+            "metadata": {}
+          },
+          "schemas": [
+            {
+              "name": "core"
+            }
+          ],
+          "tables": [
+            {
+              "name": "customers",
+              "columns": [
+                {
+                  "name": "customer_id",
+                  "type": "unknown"
+                },
+                {
+                  "name": "customer_name",
+                  "type": "unknown"
+                }
+              ],
+              "sample_source": "customers.csv"
+            }
+          ]
+        },
+        "target_profile": {
+          "database": {
+            "name": "Supabase Target",
+            "kind": "supabase",
+            "role": "target",
+            "config": {},
+            "metadata": {}
+          },
+          "schemas": [
+            {
+              "name": "public"
+            }
+          ],
+          "tables": [
+            {
+              "name": "customers",
+              "columns": [
+                {
+                  "name": "customer_id",
+                  "type": "uuid"
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "reviews": {
+        "crawl_review": {
+          "decision": "approve",
+          "notes": "ok",
+          "submitted_at": "2026-04-15T12:29:01.715519Z"
+        }
+      },
+      "error_message": "6 validation errors for GraphSnapshot\nnodes.9.id\n  Field required [type=missing, input_value={'label': 'Customer', 'ty...ta': {}, 'metadata': {}}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.13/v/missing\nnodes.9.run_id\n  Field required [type=missing, input_value={'label': 'Customer', 'ty...ta': {}, 'metadata': {}}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.13/v/missing\nnodes.10.id\n  Field required [type=missing, input_value={'label': 'public.custome...ta': {}, 'metadata': {}}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.13/v/missing\nnodes.10.run_id\n  Field required [type=missing, input_value={'label': 'public.custome...ta': {}, 'metadata': {}}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.13/v/missing\nedges.7.id\n  Field required [type=missing, input_value={'source': 'public.custom...resent', 'metadata': {}}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.13/v/missing\nedges.7.run_id\n  Field required [type=missing, input_value={'source': 'public.custom...resent', 'metadata': {}}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.13/v/missing"
+    },
+    "created_at": "2026-04-15T12:29:01.632140",
+    "updated_at": "2026-04-15T12:29:01.728588",
+    "started_at": "2026-04-15T12:29:01.718683",
+    "completed_at": "2026-04-15T12:29:01.728244"
+  },
+  "db58adf9b5194f708b52bc0e5df4f5c8": {
+    "id": "db58adf9b5194f708b52bc0e5df4f5c8",
+    "project_id": "a8b636b6ab444e1aaa691fcd92a86332",
+    "mode": "understand",
+    "instructions": "reason about the database",
+    "status": "failed",
+    "metadata": {
+      "source_connection_id": "2ac6a8d198554a40922af0da340b3a4a",
+      "target_connection_id": "f5498e80aa974e1eae411ad249ae85eb",
+      "crawl_artifacts": {
+        "source_profile": {
+          "database": {
+            "name": "Oracle Source",
+            "kind": "oracle",
+            "role": "source",
+            "config": {},
+            "metadata": {}
+          },
+          "schemas": [
+            {
+              "name": "core"
+            }
+          ],
+          "tables": [
+            {
+              "name": "customers",
+              "columns": [
+                {
+                  "name": "customer_id",
+                  "type": "unknown"
+                },
+                {
+                  "name": "customer_name",
+                  "type": "unknown"
+                }
+              ],
+              "sample_source": "customers.csv"
+            }
+          ]
+        },
+        "target_profile": {
+          "database": {
+            "name": "Supabase Target",
+            "kind": "supabase",
+            "role": "target",
+            "config": {},
+            "metadata": {}
+          },
+          "schemas": [
+            {
+              "name": "public"
+            }
+          ],
+          "tables": [
+            {
+              "name": "customers",
+              "columns": [
+                {
+                  "name": "customer_id",
+                  "type": "uuid"
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "reviews": {
+        "crawl_review": {
+          "decision": "approve",
+          "notes": "ok",
+          "submitted_at": "2026-04-15T12:29:19.239039Z"
+        }
+      },
+      "error_message": "1 validation error for UnderstandResult\nconfidence.by_entity\n  Input should be a valid dictionary [type=dict_type, input_value=[{'entity': 'Customer', 'confidence': 0.9}], input_type=list]\n    For further information visit https://errors.pydantic.dev/2.13/v/dict_type"
+    },
+    "created_at": "2026-04-15T12:29:19.131446",
+    "updated_at": "2026-04-15T12:29:19.252478",
+    "started_at": "2026-04-15T12:29:19.242307",
+    "completed_at": "2026-04-15T12:29:19.252238"
+  },
+  "e6a2a2b37e4243fbb14c5d8aa2cd8536": {
+    "id": "e6a2a2b37e4243fbb14c5d8aa2cd8536",
+    "project_id": "205874ae96d749dca8eccbaa1abe8d80",
+    "mode": "understand",
+    "instructions": "reason",
+    "status": "awaiting_reasoning_review",
+    "metadata": {
+      "source_connection_id": "53ce00acc50d48a69c546f980f1536d7",
+      "target_connection_id": "da550861ca594ebb8317842986431883",
+      "crawl_artifacts": {
+        "source_profile": {
+          "database": {
+            "name": "Oracle Source",
+            "kind": "oracle",
+            "role": "source",
+            "config": {},
+            "metadata": {}
+          },
+          "schemas": [
+            {
+              "name": "core"
+            }
+          ],
+          "tables": [
+            {
+              "name": "customers",
+              "columns": [
+                {
+                  "name": "customer_id",
+                  "type": "unknown"
+                },
+                {
+                  "name": "customer_name",
+                  "type": "unknown"
+                }
+              ],
+              "sample_source": "customers.csv"
+            }
+          ]
+        },
+        "target_profile": {
+          "database": {
+            "name": "Supabase Target",
+            "kind": "supabase",
+            "role": "target",
+            "config": {},
+            "metadata": {}
+          },
+          "schemas": [
+            {
+              "name": "public"
+            }
+          ],
+          "tables": [
+            {
+              "name": "customers",
+              "columns": [
+                {
+                  "name": "customer_id",
+                  "type": "uuid"
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "reviews": {
+        "crawl_review": {
+          "decision": "approve",
+          "notes": "ok",
+          "submitted_at": "2026-04-15T12:29:34.159859Z"
+        }
+      }
+    },
+    "created_at": "2026-04-15T12:29:34.053184",
+    "updated_at": "2026-04-15T12:29:34.196776",
+    "started_at": "2026-04-15T12:29:34.163978",
+    "completed_at": null
+  },
+  "0523cd1901ee481d88ad40e70ca55858": {
+    "id": "0523cd1901ee481d88ad40e70ca55858",
+    "project_id": "413c757c2db0490ba10a9e817f91a167",
+    "mode": "understand",
+    "instructions": "reason",
+    "status": "migration_ready",
+    "metadata": {
+      "source_connection_id": "3586605fefe34f9eae172dfeffde63f6",
+      "target_connection_id": "aa01d385519e4551ac58ae95b6164822",
+      "crawl_artifacts": {
+        "source_profile": {
+          "database": {
+            "name": "Oracle Source",
+            "kind": "oracle",
+            "role": "source",
+            "config": {},
+            "metadata": {}
+          },
+          "schemas": [
+            {
+              "name": "core"
+            }
+          ],
+          "tables": [
+            {
+              "name": "customers",
+              "columns": [
+                {
+                  "name": "customer_id",
+                  "type": "unknown"
+                },
+                {
+                  "name": "customer_name",
+                  "type": "unknown"
+                }
+              ],
+              "sample_source": "customers.csv"
+            }
+          ]
+        },
+        "target_profile": {
+          "database": {
+            "name": "Supabase Target",
+            "kind": "supabase",
+            "role": "target",
+            "config": {},
+            "metadata": {}
+          },
+          "schemas": [
+            {
+              "name": "public"
+            }
+          ],
+          "tables": [
+            {
+              "name": "customers",
+              "columns": [
+                {
+                  "name": "customer_id",
+                  "type": "uuid"
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "reviews": {
+        "crawl_review": {
+          "decision": "approve",
+          "notes": "ok",
+          "submitted_at": "2026-04-15T12:29:46.782585Z"
+        },
+        "reasoning_review": {
+          "decision": "approve",
+          "notes": "ok",
+          "submitted_at": "2026-04-15T12:29:46.848301Z"
+        },
+        "mapping_review": {
+          "decision": "approve",
+          "notes": "ok",
+          "submitted_at": "2026-04-15T12:29:46.914712Z"
+        }
+      },
+      "migration_request": {
+        "notes": "ship it",
+        "requested_at": "2026-04-15T12:29:46.943335Z"
+      }
+    },
+    "created_at": "2026-04-15T12:29:46.666204",
+    "updated_at": "2026-04-15T12:29:46.943954",
+    "started_at": "2026-04-15T12:29:46.853612",
+    "completed_at": null
+  },
+  "5f69a03ff8e046018643ae89268718f8": {
+    "id": "5f69a03ff8e046018643ae89268718f8",
+    "project_id": "5935259ad64c4258ac0f387456d404f9",
+    "mode": "understand",
+    "instructions": "reason",
+    "status": "migration_completed",
+    "metadata": {
+      "source_connection_id": "42c84d921fc94e8bbe69fd2b186d9cf2",
+      "target_connection_id": "1065b9c87f574d0daf3811ba15ae68bc",
+      "crawl_artifacts": {
+        "source_profile": {
+          "database": {
+            "name": "Oracle Source",
+            "kind": "oracle",
+            "role": "source",
+            "config": {},
+            "metadata": {}
+          },
+          "schemas": [
+            {
+              "name": "core"
+            }
+          ],
+          "tables": [
+            {
+              "name": "customers",
+              "schema": "core",
+              "columns": [
+                {
+                  "name": "customer_id",
+                  "type": "unknown"
+                },
+                {
+                  "name": "customer_name",
+                  "type": "unknown"
+                }
+              ],
+              "sample_source": "customers.csv"
+            }
+          ]
+        },
+        "target_profile": {
+          "database": {
+            "name": "Supabase Target",
+            "kind": "supabase",
+            "role": "target",
+            "config": {},
+            "metadata": {}
+          },
+          "schemas": [
+            {
+              "name": "public"
+            }
+          ],
+          "tables": [
+            {
+              "name": "customers",
+              "schema": "public",
+              "columns": [
+                {
+                  "name": "customer_id",
+                  "type": "uuid"
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "reviews": {
+        "crawl_review": {
+          "decision": "approve",
+          "notes": "ok",
+          "submitted_at": "2026-04-15T12:32:09.507866Z"
+        },
+        "reasoning_review": {
+          "decision": "approve",
+          "notes": "ok",
+          "submitted_at": "2026-04-15T12:32:09.572345Z"
+        },
+        "mapping_review": {
+          "decision": "approve",
+          "notes": "ok",
+          "submitted_at": "2026-04-15T12:32:09.638311Z"
+        }
+      },
+      "migration_request": {
+        "notes": "ship it",
+        "requested_at": "2026-04-15T12:32:09.669237Z"
+      }
+    },
+    "created_at": "2026-04-15T12:32:09.377040",
+    "updated_at": "2026-04-15T12:32:09.680145",
+    "started_at": "2026-04-15T12:32:09.577663",
+    "completed_at": null
+  },
+  "67c357cae25c48bb83f5e0567d2801fb": {
+    "id": "67c357cae25c48bb83f5e0567d2801fb",
+    "project_id": "16b6668bf6b14f82bcec5a3a796f4712",
+    "mode": "understand",
+    "instructions": "profile source and target",
+    "status": "awaiting_crawl_review",
+    "metadata": {
+      "source_connection_id": "33547f9080b54d1296ed4abfe08aee4e",
+      "target_connection_id": "946df3ab91ca49e89aad6ac562d7874d",
+      "crawl_artifacts": {
+        "source_profile": {
+          "database": {
+            "name": "Oracle Source",
+            "kind": "oracle",
+            "role": "source",
+            "config": {},
+            "metadata": {}
+          },
+          "schemas": [
+            {
+              "name": "legacy"
+            }
+          ],
+          "tables": [
+            {
+              "name": "legacy_customers",
+              "schema": "legacy",
+              "columns": [
+                {
+                  "name": "customer_id",
+                  "type": "unknown"
+                },
+                {
+                  "name": "customer_name",
+                  "type": "unknown"
+                },
+                {
+                  "name": "status",
+                  "type": "unknown"
+                }
+              ],
+              "sample_source": "legacy_customers.csv"
+            }
+          ]
+        },
+        "target_profile": {
+          "database": {
+            "name": "Supabase Target",
+            "kind": "supabase",
+            "role": "target",
+            "config": {
+              "host": "172.16.24.35",
+              "port": 5432,
+              "dbname": "trainerdb",
+              "sslmode": "prefer",
+              "schemas": null
+            },
+            "metadata": {}
+          },
+          "schemas": [
+            {
+              "name": "furnifuture"
+            },
+            {
+              "name": "public"
+            }
+          ],
+          "tables": [
+            {
+              "name": "erp_bom_component",
+              "schema": "furnifuture",
+              "estimated_rows": -1,
+              "columns": [
+                {
+                  "name": "bom_component_id",
+                  "type": "bigint",
+                  "nullable": false
+                },
+                {
+                  "name": "parent_material_id",
+                  "type": "character varying",
+                  "nullable": false
+                },
+                {
+                  "name": "component_material_id",
+                  "type": "character varying",
+                  "nullable": false
+                },
+                {
+                  "name": "plant_code",
+                  "type": "character varying",
+                  "nullable": false
+                },
+                {
+                  "name": "alternative_bom_no",
+                  "type": "character varying",
+                  "nullable": false
+                },
+                {
+                  "name": "line_no",
+                  "type": "integer",
+                  "nullable": false
+                },
+                {
+                  "name": "component_qty",
+                  "type": "numeric",
+                  "nullable": false
+                },
+                {
+                  "name": "component_uom",
+                  "type": "character varying",
+                  "nullable": false
+                },
+                {
+                  "name": "component_scrap_pct",
+                  "type": "numeric",
+                  "nullable": false
+                },
+                {
+                  "name": "phantom_item_flag",
+                  "type": "boolean",
+                  "nullable": false
+                },
+                {
+                  "name": "component_strategy_code",
+                  "type": "character varying",
+                  "nullable": false
+                },
+                {
+                  "name": "valid_from_date",
+                  "type": "date",
+                  "nullable": false
+                },
+                {
+                  "name": "valid_to_date",
+                  "type": "date",
+                  "nullable": true
+                },
+                {
+                  "name": "backflush_flag",
+                  "type": "boolean",
+                  "nullable": false
+                }
+              ],
+              "sample_rows": [
+                {
+                  "bom_component_id": 1,
+                  "parent_material_id": "FF-2000",
+                  "component_material_id": "FF-2001",
+                  "plant_code": "PLT-N1",
+                  "alternative_bom_no": "01",
+                  "line_no": 10,
+                  "component_qty": "1.0000",
+                  "component_uom": "EA",
+                  "component_scrap_pct": "1.50",
+                  "phantom_item_flag": false,
+                  "component_strategy_code": "STOCK",
+                  "valid_from_date": "2024-01-01",
+                  "valid_to_date": null,
+                  "backflush_flag": true
+                },
+                {
+                  "bom_component_id": 2,
+                  "parent_material_id": "FF-2000",
+                  "component_material_id": "FF-2002",
+                  "plant_code": "PLT-N1",
+                  "alternative_bom_no": "01",
+                  "line_no": 20,
+                  "component_qty": "1.0000",
+                  "component_uom": "SET",
+                  "component_scrap_pct": "0.75",
+                  "phantom_item_flag": false,
+                  "component_strategy_code": "STOCK",
+                  "valid_from_date": "2024-01-01",
+                  "valid_to_date": null,
+                  "backflush_flag": true
+                },
+                {
+                  "bom_component_id": 3,
+                  "parent_material_id": "FF-2000",
+                  "component_material_id": "FF-2003",
+                  "plant_code": "PLT-N1",
+                  "alternative_bom_no": "02",
+                  "line_no": 30,
+                  "component_qty": "0.2000",
+                  "component_uom": "L",
+                  "component_scrap_pct": "3.00",
+                  "phantom_item_flag": false,
+                  "component_strategy_code": "SUBSTITUTE",
+                  "valid_from_date": "2024-02-15",
+                  "valid_to_date": null,
+                  "backflush_flag": false
+                }
+              ]
+            },
+            {
+              "name": "erp_inventory_balance",
+              "schema": "furnifuture",
+              "estimated_rows": -1,
+              "columns": [
+                {
+                  "name": "inventory_balance_id",
+                  "type": "bigint",
+                  "nullable": false
+                },
+                {
+                  "name": "material_id",
+                  "type": "character varying",
+                  "nullable": false
+                },
+                {
+                  "name": "plant_code",
+                  "type": "character varying",
+                  "nullable": false
+                },
+                {
+                  "name": "storage_location_code",
+                  "type": "character varying",
+                  "nullable": false
+                },
+                {
+                  "name": "stock_status_code",
+                  "type": "character varying",
+                  "nullable": false
+                },
+                {
+                  "name": "unrestricted_qty",
+                  "type": "numeric",
+                  "nullable": false
+                },
+                {
+                  "name": "quality_qty",
+                  "type": "numeric",
+                  "nullable": false
+                },
+                {
+                  "name": "blocked_qty",
+                  "type": "numeric",
+                  "nullable": false
+                },
+                {
+                  "name": "transfer_qty",
+                  "type": "numeric",
+                  "nullable": false
+                },
+                {
+                  "name": "special_stock_indicator",
+                  "type": "character varying",
+                  "nullable": true
+                },
+                {
+                  "name": "lot_no",
+                  "type": "character varying",
+                  "nullable": true
+                },
+                {
+                  "name": "snapshot_ts",
+                  "type": "timestamp with time zone",
+                  "nullable": false
+                }
+              ],
+              "sample_rows": [
+                {
+                  "inventory_balance_id": 1,
+                  "material_id": "FF-2000",
+                  "plant_code": "PLT-N1",
+                  "storage_location_code": "FG01",
+                  "stock_status_code": "UNR",
+                  "unrestricted_qty": "18.0000",
+                  "quality_qty": "0.0000",
+                  "blocked_qty": "0.0000",
+                  "transfer_qty": "1.0000",
+                  "special_stock_indicator": null,
+                  "lot_no": "LOT-HT2404",
+                  "snapshot_ts": "2026-04-15T12:24:25.522012Z"
+                },
+                {
+                  "inventory_balance_id": 2,
+                  "material_id": "FF-2001",
+                  "plant_code": "PLT-N1",
+                  "storage_location_code": "WIP1",
+                  "stock_status_code": "UNR",
+                  "unrestricted_qty": "24.0000",
+                  "quality_qty": "2.0000",
+                  "blocked_qty": "0.0000",
+                  "transfer_qty": "0.0000",
+                  "special_stock_indicator": null,
+                  "lot_no": "LOT-TP2404",
+                  "snapshot_ts": "2026-04-15T12:24:25.522012Z"
+                },
+                {
+                  "inventory_balance_id": 3,
+                  "material_id": "FF-2002",
+                  "plant_code": "PLT-N1",
+                  "storage_location_code": "RM10",
+                  "stock_status_code": "QI",
+                  "unrestricted_qty": "0.0000",
+                  "quality_qty": "12.0000",
+                  "blocked_qty": "0.0000",
+                  "transfer_qty": "0.0000",
+                  "special_stock_indicator": null,
+                  "lot_no": "LOT-LG2404",
+                  "snapshot_ts": "2026-04-15T12:24:25.522012Z"
+                }
+              ]
+            },
+            {
+              "name": "erp_material_master",
+              "schema": "furnifuture",
+              "estimated_rows": -1,
+              "columns": [
+                {
+                  "name": "material_id",
+                  "type": "character varying",
+                  "nullable": false
+                },
+                {
+                  "name": "material_description",
+                  "type": "text",
+                  "nullable": false
+                },
+                {
+                  "name": "material_type_code",
+                  "type": "character varying",
+                  "nullable": false
+                },
+                {
+                  "name": "lifecycle_status",
+                  "type": "character varying",
+                  "nullable": false
+                },
+                {
+                  "name": "base_uom",
+                  "type": "character varying",
+                  "nullable": false
+                },
+                {
+                  "name": "procurement_type",
+                  "type": "character",
+                  "nullable": false
+                },
+                {
+                  "name": "planning_strategy_code",
+                  "type": "character varying",
+                  "nullable": false
+                },
+                {
+                  "name": "revision_code",
+                  "type": "character varying",
+                  "nullable": true
+                },
+                {
+                  "name": "default_plant_code",
+                  "type": "character varying",
+                  "nullable": true
+                },
+                {
+                  "name": "material_group",
+                  "type": "character varying",
+                  "nullable": true
+                },
+                {
+                  "name": "engineering_owner",
+                  "type": "character varying",
+                  "nullable": true
+                },
+                {
+                  "name": "is_serial_tracked",
+                  "type": "boolean",
+                  "nullable": false
+                },
+                {
+                  "name": "created_at",
+                  "type": "timestamp with time zone",
+                  "nullable": false
+                }
+              ],
+              "sample_rows": [
+                {
+                  "material_id": "FF-2000",
+                  "material_description": "Harbor Dining Table",
+                  "material_type_code": "FG",
+                  "lifecycle_status": "RELEASED",
+                  "base_uom": "EA",
+                  "procurement_type": "E",
+                  "planning_strategy_code": "MTS_STD",
+                  "revision_code": "C",
+                  "default_plant_code": "PLT-N1",
+                  "material_group": "DINING",
+                  "engineering_owner": "eng_furniture",
+                  "is_serial_tracked": false,
+                  "created_at": "2026-04-15T12:24:25.514224Z"
+                },
+                {
+                  "material_id": "FF-2001",
+                  "material_description": "Harbor Table Top",
+                  "material_type_code": "HALB",
+                  "lifecycle_status": "RELEASED",
+                  "base_uom": "EA",
+                  "procurement_type": "E",
+                  "planning_strategy_code": "MTO_CFG",
+                  "revision_code": "C",
+                  "default_plant_code": "PLT-N1",
+                  "material_group": "PANELS",
+                  "engineering_owner": "eng_wood",
+                  "is_serial_tracked": false,
+                  "created_at": "2026-04-15T12:24:25.514224Z"
+                },
+                {
+                  "material_id": "FF-2002",
+                  "material_description": "Turned Leg Assembly",
+                  "material_type_code": "HALB",
+                  "lifecycle_status": "RELEASED",
+                  "base_uom": "SET",
+                  "procurement_type": "F",
+                  "planning_strategy_code": "MTS_STD",
+                  "revision_code": "B",
+                  "default_plant_code": "PLT-N1",
+                  "material_group": "LEGSETS",
+                  "engineering_owner": "eng_hardware",
+                  "is_serial_tracked": false,
+                  "created_at": "2026-04-15T12:24:25.514224Z"
+                }
+              ]
+            },
+            {
+              "name": "erp_production_order",
+              "schema": "furnifuture",
+              "estimated_rows": -1,
+              "columns": [
+                {
+                  "name": "production_order_id",
+                  "type": "character varying",
+                  "nullable": false
+                },
+                {
+                  "name": "material_id",
+                  "type": "character varying",
+                  "nullable": false
+                },
+                {
+                  "name": "plant_code",
+                  "type": "character varying",
+                  "nullable": false
+                },
+                {
+                  "name": "order_type_code",
+                  "type": "character varying",
+                  "nullable": false
+                },
+                {
+                  "name": "order_status_code",
+                  "type": "character varying",
+                  "nullable": false
+                },
+                {
+                  "name": "planned_qty",
+                  "type": "numeric",
+                  "nullable": false
+                },
+                {
+                  "name": "released_qty",
+                  "type": "numeric",
+                  "nullable": false
+                },
+                {
+                  "name": "confirmed_qty",
+                  "type": "numeric",
+                  "nullable": false
+                },
+                {
+                  "name": "scrapped_qty",
+                  "type": "numeric",
+                  "nullable": false
+                },
+                {
+                  "name": "scheduled_start_ts",
+                  "type": "timestamp with time zone",
+                  "nullable": true
+                },
+                {
+                  "name": "scheduled_end_ts",
+                  "type": "timestamp with time zone",
+                  "nullable": true
+                },
+                {
+                  "name": "routing_version",
+                  "type": "character varying",
+                  "nullable": true
+                },
+                {
+                  "name": "planner_code",
+                  "type": "character varying",
+                  "nullable": true
+                },
+                {
+                  "name": "reservation_profile",
+                  "type": "character varying",
+                  "nullable": true
+                },
+                {
+                  "name": "created_at",
+                  "type": "timestamp with time zone",
+                  "nullable": false
+                }
+              ],
+              "sample_rows": [
+                {
+                  "production_order_id": "FFPO-240401",
+                  "material_id": "FF-2000",
+                  "plant_code": "PLT-N1",
+                  "order_type_code": "PP01",
+                  "order_status_code": "REL",
+                  "planned_qty": "8.0000",
+                  "released_qty": "8.0000",
+                  "confirmed_qty": "3.0000",
+                  "scrapped_qty": "0.0000",
+                  "scheduled_start_ts": "2024-04-03T07:00:00Z",
+                  "scheduled_end_ts": "2024-04-05T18:00:00Z",
+                  "routing_version": "RV-TBL-03",
+                  "planner_code": "MRP-N1",
+                  "reservation_profile": "STD_RES",
+                  "created_at": "2026-04-15T12:24:25.525078Z"
+                },
+                {
+                  "production_order_id": "FFPO-240402",
+                  "material_id": "FF-2000",
+                  "plant_code": "PLT-N1",
+                  "order_type_code": "PP01",
+                  "order_status_code": "PCNF",
+                  "planned_qty": "5.0000",
+                  "released_qty": "5.0000",
+                  "confirmed_qty": "4.0000",
+                  "scrapped_qty": "1.0000",
+                  "scheduled_start_ts": "2024-04-02T09:00:00Z",
+                  "scheduled_end_ts": "2024-04-04T17:00:00Z",
+                  "routing_version": "RV-TBL-03",
+                  "planner_code": "MRP-N1",
+                  "reservation_profile": "STD_RES",
+                  "created_at": "2026-04-15T12:24:25.525078Z"
+                },
+                {
+                  "production_order_id": "FFPO-240403",
+                  "material_id": "FF-2006",
+                  "plant_code": "PLT-N2",
+                  "order_type_code": "PROTO",
+                  "order_status_code": "CRTD",
+                  "planned_qty": "3.0000",
+                  "released_qty": "0.0000",
+                  "confirmed_qty": "0.0000",
+                  "scrapped_qty": "0.0000",
+                  "scheduled_start_ts": "2024-04-06T08:00:00Z",
+                  "scheduled_end_ts": "2024-04-10T17:00:00Z",
+                  "routing_version": "RV-SDB-01",
+                  "planner_code": "MRP-N2",
+                  "reservation_profile": "ENG_HOLD",
+                  "created_at": "2026-04-15T12:24:25.525078Z"
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "created_at": "2026-04-15T12:39:41.059716",
+    "updated_at": "2026-04-15T12:39:42.238042",
+    "started_at": "2026-04-15T12:39:41.068269",
+    "completed_at": null
+  },
+  "7ae72b8dcc1e4f52b71bb78a3cfb604a": {
+    "id": "7ae72b8dcc1e4f52b71bb78a3cfb604a",
+    "project_id": "600ec0a7eeb4400b82a365e58630db58",
+    "mode": "understand",
+    "instructions": "profile source and target",
+    "status": "awaiting_crawl_review",
+    "metadata": {
+      "source_connection_id": "0739330e6b944850a017eb3ab7ec699e",
+      "target_connection_id": "c059e79667364221a27b9e47819351a4",
+      "crawl_artifacts": {
+        "source_profile": {
+          "database": {
+            "name": "Oracle Source",
+            "kind": "oracle",
+            "role": "source",
+            "config": {},
+            "metadata": {}
+          },
+          "schemas": [
+            {
+              "name": "legacy"
+            }
+          ],
+          "tables": [
+            {
+              "name": "legacy_customers",
+              "schema": "legacy",
+              "columns": [
+                {
+                  "name": "customer_id",
+                  "type": "unknown"
+                },
+                {
+                  "name": "customer_name",
+                  "type": "unknown"
+                },
+                {
+                  "name": "status",
+                  "type": "unknown"
+                }
+              ],
+              "sample_source": "legacy_customers.csv"
+            }
+          ]
+        },
+        "target_profile": {
+          "database": {
+            "name": "Supabase Target",
+            "kind": "supabase",
+            "role": "target",
+            "config": {
+              "host": "172.16.24.35",
+              "port": 5432,
+              "dbname": "trainerdb",
+              "sslmode": "prefer",
+              "schemas": null
+            },
+            "metadata": {}
+          },
+          "schemas": [
+            {
+              "name": "furnifuture"
+            },
+            {
+              "name": "public"
+            }
+          ],
+          "tables": [
+            {
+              "name": "erp_bom_component",
+              "schema": "furnifuture",
+              "estimated_rows": -1,
+              "columns": [
+                {
+                  "name": "bom_component_id",
+                  "type": "bigint",
+                  "nullable": false
+                },
+                {
+                  "name": "parent_material_id",
+                  "type": "character varying",
+                  "nullable": false
+                },
+                {
+                  "name": "component_material_id",
+                  "type": "character varying",
+                  "nullable": false
+                },
+                {
+                  "name": "plant_code",
+                  "type": "character varying",
+                  "nullable": false
+                },
+                {
+                  "name": "alternative_bom_no",
+                  "type": "character varying",
+                  "nullable": false
+                },
+                {
+                  "name": "line_no",
+                  "type": "integer",
+                  "nullable": false
+                },
+                {
+                  "name": "component_qty",
+                  "type": "numeric",
+                  "nullable": false
+                },
+                {
+                  "name": "component_uom",
+                  "type": "character varying",
+                  "nullable": false
+                },
+                {
+                  "name": "component_scrap_pct",
+                  "type": "numeric",
+                  "nullable": false
+                },
+                {
+                  "name": "phantom_item_flag",
+                  "type": "boolean",
+                  "nullable": false
+                },
+                {
+                  "name": "component_strategy_code",
+                  "type": "character varying",
+                  "nullable": false
+                },
+                {
+                  "name": "valid_from_date",
+                  "type": "date",
+                  "nullable": false
+                },
+                {
+                  "name": "valid_to_date",
+                  "type": "date",
+                  "nullable": true
+                },
+                {
+                  "name": "backflush_flag",
+                  "type": "boolean",
+                  "nullable": false
+                }
+              ],
+              "sample_rows": [
+                {
+                  "bom_component_id": 1,
+                  "parent_material_id": "FF-2000",
+                  "component_material_id": "FF-2001",
+                  "plant_code": "PLT-N1",
+                  "alternative_bom_no": "01",
+                  "line_no": 10,
+                  "component_qty": "1.0000",
+                  "component_uom": "EA",
+                  "component_scrap_pct": "1.50",
+                  "phantom_item_flag": false,
+                  "component_strategy_code": "STOCK",
+                  "valid_from_date": "2024-01-01",
+                  "valid_to_date": null,
+                  "backflush_flag": true
+                },
+                {
+                  "bom_component_id": 2,
+                  "parent_material_id": "FF-2000",
+                  "component_material_id": "FF-2002",
+                  "plant_code": "PLT-N1",
+                  "alternative_bom_no": "01",
+                  "line_no": 20,
+                  "component_qty": "1.0000",
+                  "component_uom": "SET",
+                  "component_scrap_pct": "0.75",
+                  "phantom_item_flag": false,
+                  "component_strategy_code": "STOCK",
+                  "valid_from_date": "2024-01-01",
+                  "valid_to_date": null,
+                  "backflush_flag": true
+                },
+                {
+                  "bom_component_id": 3,
+                  "parent_material_id": "FF-2000",
+                  "component_material_id": "FF-2003",
+                  "plant_code": "PLT-N1",
+                  "alternative_bom_no": "02",
+                  "line_no": 30,
+                  "component_qty": "0.2000",
+                  "component_uom": "L",
+                  "component_scrap_pct": "3.00",
+                  "phantom_item_flag": false,
+                  "component_strategy_code": "SUBSTITUTE",
+                  "valid_from_date": "2024-02-15",
+                  "valid_to_date": null,
+                  "backflush_flag": false
+                }
+              ]
+            },
+            {
+              "name": "erp_inventory_balance",
+              "schema": "furnifuture",
+              "estimated_rows": -1,
+              "columns": [
+                {
+                  "name": "inventory_balance_id",
+                  "type": "bigint",
+                  "nullable": false
+                },
+                {
+                  "name": "material_id",
+                  "type": "character varying",
+                  "nullable": false
+                },
+                {
+                  "name": "plant_code",
+                  "type": "character varying",
+                  "nullable": false
+                },
+                {
+                  "name": "storage_location_code",
+                  "type": "character varying",
+                  "nullable": false
+                },
+                {
+                  "name": "stock_status_code",
+                  "type": "character varying",
+                  "nullable": false
+                },
+                {
+                  "name": "unrestricted_qty",
+                  "type": "numeric",
+                  "nullable": false
+                },
+                {
+                  "name": "quality_qty",
+                  "type": "numeric",
+                  "nullable": false
+                },
+                {
+                  "name": "blocked_qty",
+                  "type": "numeric",
+                  "nullable": false
+                },
+                {
+                  "name": "transfer_qty",
+                  "type": "numeric",
+                  "nullable": false
+                },
+                {
+                  "name": "special_stock_indicator",
+                  "type": "character varying",
+                  "nullable": true
+                },
+                {
+                  "name": "lot_no",
+                  "type": "character varying",
+                  "nullable": true
+                },
+                {
+                  "name": "snapshot_ts",
+                  "type": "timestamp with time zone",
+                  "nullable": false
+                }
+              ],
+              "sample_rows": [
+                {
+                  "inventory_balance_id": 1,
+                  "material_id": "FF-2000",
+                  "plant_code": "PLT-N1",
+                  "storage_location_code": "FG01",
+                  "stock_status_code": "UNR",
+                  "unrestricted_qty": "18.0000",
+                  "quality_qty": "0.0000",
+                  "blocked_qty": "0.0000",
+                  "transfer_qty": "1.0000",
+                  "special_stock_indicator": null,
+                  "lot_no": "LOT-HT2404",
+                  "snapshot_ts": "2026-04-15T12:24:25.522012Z"
+                },
+                {
+                  "inventory_balance_id": 2,
+                  "material_id": "FF-2001",
+                  "plant_code": "PLT-N1",
+                  "storage_location_code": "WIP1",
+                  "stock_status_code": "UNR",
+                  "unrestricted_qty": "24.0000",
+                  "quality_qty": "2.0000",
+                  "blocked_qty": "0.0000",
+                  "transfer_qty": "0.0000",
+                  "special_stock_indicator": null,
+                  "lot_no": "LOT-TP2404",
+                  "snapshot_ts": "2026-04-15T12:24:25.522012Z"
+                },
+                {
+                  "inventory_balance_id": 3,
+                  "material_id": "FF-2002",
+                  "plant_code": "PLT-N1",
+                  "storage_location_code": "RM10",
+                  "stock_status_code": "QI",
+                  "unrestricted_qty": "0.0000",
+                  "quality_qty": "12.0000",
+                  "blocked_qty": "0.0000",
+                  "transfer_qty": "0.0000",
+                  "special_stock_indicator": null,
+                  "lot_no": "LOT-LG2404",
+                  "snapshot_ts": "2026-04-15T12:24:25.522012Z"
+                }
+              ]
+            },
+            {
+              "name": "erp_material_master",
+              "schema": "furnifuture",
+              "estimated_rows": -1,
+              "columns": [
+                {
+                  "name": "material_id",
+                  "type": "character varying",
+                  "nullable": false
+                },
+                {
+                  "name": "material_description",
+                  "type": "text",
+                  "nullable": false
+                },
+                {
+                  "name": "material_type_code",
+                  "type": "character varying",
+                  "nullable": false
+                },
+                {
+                  "name": "lifecycle_status",
+                  "type": "character varying",
+                  "nullable": false
+                },
+                {
+                  "name": "base_uom",
+                  "type": "character varying",
+                  "nullable": false
+                },
+                {
+                  "name": "procurement_type",
+                  "type": "character",
+                  "nullable": false
+                },
+                {
+                  "name": "planning_strategy_code",
+                  "type": "character varying",
+                  "nullable": false
+                },
+                {
+                  "name": "revision_code",
+                  "type": "character varying",
+                  "nullable": true
+                },
+                {
+                  "name": "default_plant_code",
+                  "type": "character varying",
+                  "nullable": true
+                },
+                {
+                  "name": "material_group",
+                  "type": "character varying",
+                  "nullable": true
+                },
+                {
+                  "name": "engineering_owner",
+                  "type": "character varying",
+                  "nullable": true
+                },
+                {
+                  "name": "is_serial_tracked",
+                  "type": "boolean",
+                  "nullable": false
+                },
+                {
+                  "name": "created_at",
+                  "type": "timestamp with time zone",
+                  "nullable": false
+                }
+              ],
+              "sample_rows": [
+                {
+                  "material_id": "FF-2000",
+                  "material_description": "Harbor Dining Table",
+                  "material_type_code": "FG",
+                  "lifecycle_status": "RELEASED",
+                  "base_uom": "EA",
+                  "procurement_type": "E",
+                  "planning_strategy_code": "MTS_STD",
+                  "revision_code": "C",
+                  "default_plant_code": "PLT-N1",
+                  "material_group": "DINING",
+                  "engineering_owner": "eng_furniture",
+                  "is_serial_tracked": false,
+                  "created_at": "2026-04-15T12:24:25.514224Z"
+                },
+                {
+                  "material_id": "FF-2001",
+                  "material_description": "Harbor Table Top",
+                  "material_type_code": "HALB",
+                  "lifecycle_status": "RELEASED",
+                  "base_uom": "EA",
+                  "procurement_type": "E",
+                  "planning_strategy_code": "MTO_CFG",
+                  "revision_code": "C",
+                  "default_plant_code": "PLT-N1",
+                  "material_group": "PANELS",
+                  "engineering_owner": "eng_wood",
+                  "is_serial_tracked": false,
+                  "created_at": "2026-04-15T12:24:25.514224Z"
+                },
+                {
+                  "material_id": "FF-2002",
+                  "material_description": "Turned Leg Assembly",
+                  "material_type_code": "HALB",
+                  "lifecycle_status": "RELEASED",
+                  "base_uom": "SET",
+                  "procurement_type": "F",
+                  "planning_strategy_code": "MTS_STD",
+                  "revision_code": "B",
+                  "default_plant_code": "PLT-N1",
+                  "material_group": "LEGSETS",
+                  "engineering_owner": "eng_hardware",
+                  "is_serial_tracked": false,
+                  "created_at": "2026-04-15T12:24:25.514224Z"
+                }
+              ]
+            },
+            {
+              "name": "erp_production_order",
+              "schema": "furnifuture",
+              "estimated_rows": -1,
+              "columns": [
+                {
+                  "name": "production_order_id",
+                  "type": "character varying",
+                  "nullable": false
+                },
+                {
+                  "name": "material_id",
+                  "type": "character varying",
+                  "nullable": false
+                },
+                {
+                  "name": "plant_code",
+                  "type": "character varying",
+                  "nullable": false
+                },
+                {
+                  "name": "order_type_code",
+                  "type": "character varying",
+                  "nullable": false
+                },
+                {
+                  "name": "order_status_code",
+                  "type": "character varying",
+                  "nullable": false
+                },
+                {
+                  "name": "planned_qty",
+                  "type": "numeric",
+                  "nullable": false
+                },
+                {
+                  "name": "released_qty",
+                  "type": "numeric",
+                  "nullable": false
+                },
+                {
+                  "name": "confirmed_qty",
+                  "type": "numeric",
+                  "nullable": false
+                },
+                {
+                  "name": "scrapped_qty",
+                  "type": "numeric",
+                  "nullable": false
+                },
+                {
+                  "name": "scheduled_start_ts",
+                  "type": "timestamp with time zone",
+                  "nullable": true
+                },
+                {
+                  "name": "scheduled_end_ts",
+                  "type": "timestamp with time zone",
+                  "nullable": true
+                },
+                {
+                  "name": "routing_version",
+                  "type": "character varying",
+                  "nullable": true
+                },
+                {
+                  "name": "planner_code",
+                  "type": "character varying",
+                  "nullable": true
+                },
+                {
+                  "name": "reservation_profile",
+                  "type": "character varying",
+                  "nullable": true
+                },
+                {
+                  "name": "created_at",
+                  "type": "timestamp with time zone",
+                  "nullable": false
+                }
+              ],
+              "sample_rows": [
+                {
+                  "production_order_id": "FFPO-240401",
+                  "material_id": "FF-2000",
+                  "plant_code": "PLT-N1",
+                  "order_type_code": "PP01",
+                  "order_status_code": "REL",
+                  "planned_qty": "8.0000",
+                  "released_qty": "8.0000",
+                  "confirmed_qty": "3.0000",
+                  "scrapped_qty": "0.0000",
+                  "scheduled_start_ts": "2024-04-03T07:00:00Z",
+                  "scheduled_end_ts": "2024-04-05T18:00:00Z",
+                  "routing_version": "RV-TBL-03",
+                  "planner_code": "MRP-N1",
+                  "reservation_profile": "STD_RES",
+                  "created_at": "2026-04-15T12:24:25.525078Z"
+                },
+                {
+                  "production_order_id": "FFPO-240402",
+                  "material_id": "FF-2000",
+                  "plant_code": "PLT-N1",
+                  "order_type_code": "PP01",
+                  "order_status_code": "PCNF",
+                  "planned_qty": "5.0000",
+                  "released_qty": "5.0000",
+                  "confirmed_qty": "4.0000",
+                  "scrapped_qty": "1.0000",
+                  "scheduled_start_ts": "2024-04-02T09:00:00Z",
+                  "scheduled_end_ts": "2024-04-04T17:00:00Z",
+                  "routing_version": "RV-TBL-03",
+                  "planner_code": "MRP-N1",
+                  "reservation_profile": "STD_RES",
+                  "created_at": "2026-04-15T12:24:25.525078Z"
+                },
+                {
+                  "production_order_id": "FFPO-240403",
+                  "material_id": "FF-2006",
+                  "plant_code": "PLT-N2",
+                  "order_type_code": "PROTO",
+                  "order_status_code": "CRTD",
+                  "planned_qty": "3.0000",
+                  "released_qty": "0.0000",
+                  "confirmed_qty": "0.0000",
+                  "scrapped_qty": "0.0000",
+                  "scheduled_start_ts": "2024-04-06T08:00:00Z",
+                  "scheduled_end_ts": "2024-04-10T17:00:00Z",
+                  "routing_version": "RV-SDB-01",
+                  "planner_code": "MRP-N2",
+                  "reservation_profile": "ENG_HOLD",
+                  "created_at": "2026-04-15T12:24:25.525078Z"
+                }
+              ]
+            }
+          ],
+          "warnings": []
+        }
+      }
+    },
+    "created_at": "2026-04-15T12:41:10.261629",
+    "updated_at": "2026-04-15T12:41:11.460252",
+    "started_at": "2026-04-15T12:41:10.269693",
+    "completed_at": null
+  }
+}

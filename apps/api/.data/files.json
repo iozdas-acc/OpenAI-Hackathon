@@ -1,0 +1,93 @@
+{
+  "bbef3e172459467abed5dfc315a49831": {
+    "id": "bbef3e172459467abed5dfc315a49831",
+    "project_id": "578423d23a4049fd89e83db9d3f95abb",
+    "name": "customers.csv",
+    "filename": "customers.csv",
+    "size_bytes": 34,
+    "checksum": "9f0981e5c992a43f0dd4078d52417c84e508c9759917a5d7d1ac5c648713ed30",
+    "metadata": {
+      "content_type": "text/csv",
+      "path": "/Users/izgin.ozdas/Documents/RX/Hackathons/OpenAI/apps/api/.data/uploads/578423d23a4049fd89e83db9d3f95abb/7de0e84a307947949d971d3c84fd455c_customers.csv"
+    },
+    "uploaded_at": "2026-04-15T12:29:01.624307"
+  },
+  "c7f16a9c1f824c4480fba729db4cac13": {
+    "id": "c7f16a9c1f824c4480fba729db4cac13",
+    "project_id": "a8b636b6ab444e1aaa691fcd92a86332",
+    "name": "customers.csv",
+    "filename": "customers.csv",
+    "size_bytes": 34,
+    "checksum": "9f0981e5c992a43f0dd4078d52417c84e508c9759917a5d7d1ac5c648713ed30",
+    "metadata": {
+      "content_type": "text/csv",
+      "path": "/Users/izgin.ozdas/Documents/RX/Hackathons/OpenAI/apps/api/.data/uploads/a8b636b6ab444e1aaa691fcd92a86332/49e6e85dc2bc4164b2928381815679d0_customers.csv"
+    },
+    "uploaded_at": "2026-04-15T12:29:19.124294"
+  },
+  "d72451c3afc4460482447c9d27a0663e": {
+    "id": "d72451c3afc4460482447c9d27a0663e",
+    "project_id": "205874ae96d749dca8eccbaa1abe8d80",
+    "name": "customers.csv",
+    "filename": "customers.csv",
+    "size_bytes": 34,
+    "checksum": "9f0981e5c992a43f0dd4078d52417c84e508c9759917a5d7d1ac5c648713ed30",
+    "metadata": {
+      "content_type": "text/csv",
+      "path": "/Users/izgin.ozdas/Documents/RX/Hackathons/OpenAI/apps/api/.data/uploads/205874ae96d749dca8eccbaa1abe8d80/8245c954bc4845919c2e3b85fe2c9634_customers.csv"
+    },
+    "uploaded_at": "2026-04-15T12:29:34.049496"
+  },
+  "d956c6b42d0c46acb1311d05c52775d3": {
+    "id": "d956c6b42d0c46acb1311d05c52775d3",
+    "project_id": "413c757c2db0490ba10a9e817f91a167",
+    "name": "customers.csv",
+    "filename": "customers.csv",
+    "size_bytes": 34,
+    "checksum": "9f0981e5c992a43f0dd4078d52417c84e508c9759917a5d7d1ac5c648713ed30",
+    "metadata": {
+      "content_type": "text/csv",
+      "path": "/Users/izgin.ozdas/Documents/RX/Hackathons/OpenAI/apps/api/.data/uploads/413c757c2db0490ba10a9e817f91a167/98159375fd684264930b3a1e4b5385d9_customers.csv"
+    },
+    "uploaded_at": "2026-04-15T12:29:46.659466"
+  },
+  "a9a0782b0df94b23a4463cb194f0c2ed": {
+    "id": "a9a0782b0df94b23a4463cb194f0c2ed",
+    "project_id": "5935259ad64c4258ac0f387456d404f9",
+    "name": "customers.csv",
+    "filename": "customers.csv",
+    "size_bytes": 34,
+    "checksum": "9f0981e5c992a43f0dd4078d52417c84e508c9759917a5d7d1ac5c648713ed30",
+    "metadata": {
+      "content_type": "text/csv",
+      "path": "/Users/izgin.ozdas/Documents/RX/Hackathons/OpenAI/apps/api/.data/uploads/5935259ad64c4258ac0f387456d404f9/37763bae06864054b39715d11d7c24ac_customers.csv"
+    },
+    "uploaded_at": "2026-04-15T12:32:09.368573"
+  },
+  "6deefe931c4843c09b5f53d04c52f677": {
+    "id": "6deefe931c4843c09b5f53d04c52f677",
+    "project_id": "16b6668bf6b14f82bcec5a3a796f4712",
+    "name": "legacy_customers.csv",
+    "filename": "legacy_customers.csv",
+    "size_bytes": 48,
+    "checksum": "3f5f43d898a48c3da21f8a50629600777aa6d52b9736b5427c70a3c2c7243fbb",
+    "metadata": {
+      "content_type": "text/csv",
+      "path": "/Users/izgin.ozdas/Documents/RX/Hackathons/OpenAI/apps/api/.data/uploads/16b6668bf6b14f82bcec5a3a796f4712/a6ce28b0340b4e3b976ac4d63d40043d_legacy_customers.csv"
+    },
+    "uploaded_at": "2026-04-15T12:39:41.048045"
+  },
+  "0a8363397ae145278d8847545126ba4a": {
+    "id": "0a8363397ae145278d8847545126ba4a",
+    "project_id": "600ec0a7eeb4400b82a365e58630db58",
+    "name": "legacy_customers.csv",
+    "filename": "legacy_customers.csv",
+    "size_bytes": 48,
+    "checksum": "3f5f43d898a48c3da21f8a50629600777aa6d52b9736b5427c70a3c2c7243fbb",
+    "metadata": {
+      "content_type": "text/csv",
+      "path": "/Users/izgin.ozdas/Documents/RX/Hackathons/OpenAI/apps/api/.data/uploads/600ec0a7eeb4400b82a365e58630db58/5e25d7f4d1d3429a85ae9ab7307b892a_legacy_customers.csv"
+    },
+    "uploaded_at": "2026-04-15T12:41:10.258055"
+  }
+}
