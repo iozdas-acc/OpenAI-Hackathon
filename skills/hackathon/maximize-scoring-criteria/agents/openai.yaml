@@ -1,0 +1,4 @@
+interface:
+  display_name: "Maximize Scoring"
+  short_description: "Bias work toward the hackathon judging rubric."
+  default_prompt: "Use $maximize-scoring-criteria to shape this work for the hackathon judging criteria."

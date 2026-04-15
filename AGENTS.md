@@ -4,6 +4,21 @@
 
 This repository builds a human-in-the-loop semantic translation platform for business ontology mapping.
 
+## Hackathon judging context
+
+Optimize decisions, scope, and storytelling for the judging criteria:
+
+- `25%` Depth of Codex integration
+- `25%` Real-world partner impact
+- `25%` Reusability and adoption potential
+- `25%` Demo and pitch quality
+
+For demos and implementation choices, show both the outcome and the workflow:
+
+- what was built
+- why it matters
+- where Codex accelerated or transformed the build
+
 Read these files before making structural or architectural decisions:
 
 - `docs/architecture.md`
@@ -84,7 +99,7 @@ Choose skills by folder category first, then pick the smallest set of skills tha
 - `skills/frontend/web3d/`
   - Use for Three.js, React Three Fiber, shaders, post-processing, or 3D interaction work.
 - `skills/hackathon/`
-  - Use for repo-specific stage gates, orchestration structure, and semantic translation platform guidance.
+  - Use for repo-specific stage gates, scoring optimization, orchestration structure, and semantic translation platform guidance.
 
 When multiple skills apply, use them in this order unless the task clearly requires a different sequence:
 

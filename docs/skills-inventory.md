@@ -55,6 +55,7 @@ This repo vendors a first-pass skill base for the hackathon project. The repo co
 
 - `langgraph-runtime`
 - `iteration-stage-gate`
+- `maximize-scoring-criteria`
 
 ## Portability
 
@@ -98,5 +99,6 @@ Treat the folder structure as the first routing layer when deciding which skill 
 - `skills/frontend/motion/` for GSAP and motion work
 - `skills/frontend/web3d/` for Three.js and R3F work
 - `skills/hackathon/` for stage-gated hackathon-specific architecture rules
+- `maximize-scoring-criteria` for shaping scope, implementation, and demos toward the judging rubric
 
 Prefer repo-managed skills and native Codex tools first. Treat imported vendor workflows as reference material that should be adapted to the current Codex tool surface.
